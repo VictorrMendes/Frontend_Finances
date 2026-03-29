@@ -27,7 +27,7 @@ export default function CartoesPage() {
   }, []);
 
   const fetchCartoes = () => {
-    fetch("http://127.0.0.1:8000/api/cartoes/")
+    fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/")
       .then((resposta) => resposta.json())
       .then((dados) => {
         setCartoes(dados);
@@ -44,7 +44,7 @@ export default function CartoesPage() {
     setIsSubmitting(true);
 
     try {
-      const resposta = await fetch("http://127.0.0.1:8000/api/cartoes/", {
+      const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -74,7 +74,7 @@ export default function CartoesPage() {
     if (!window.confirm("Tem certeza que deseja excluir este cartão? Lançamentos vinculados a ele podem ser afetados.")) return;
 
     try {
-      const resposta = await fetch(`http://127.0.0.1:8000/api/cartoes/${id}/`, {
+      const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/cartoes/${id}/`, {
         method: "DELETE",
       });
 

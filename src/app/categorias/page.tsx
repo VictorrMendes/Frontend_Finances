@@ -20,7 +20,7 @@ export default function CategoriasPage() {
   }, []);
 
   const fetchCategorias = () => {
-    fetch("http://127.0.0.1:8000/api/categorias/")
+    fetch("https://victorrmendes.pythonanywhere.com/api/categorias/")
       .then((resposta) => resposta.json())
       .then((dados) => {
         setCategorias(dados);
@@ -37,7 +37,7 @@ export default function CategoriasPage() {
     setIsSubmitting(true);
 
     try {
-      const resposta = await fetch("http://127.0.0.1:8000/api/categorias/", {
+      const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome: novaCategoria }),
@@ -59,7 +59,7 @@ export default function CategoriasPage() {
     if (!window.confirm("Tem certeza que deseja excluir esta categoria?")) return;
 
     try {
-      const resposta = await fetch(`http://127.0.0.1:8000/api/categorias/${id}/`, {
+      const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/categorias/${id}/`, {
         method: "DELETE",
       });
 

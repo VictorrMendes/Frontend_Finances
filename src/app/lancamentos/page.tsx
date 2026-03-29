@@ -48,10 +48,10 @@ export default function LancamentosPage() {
     try {
       // Fazemos as 4 buscas ao mesmo tempo para ser mais rápido
       const [resLanc, resCat, resBanc, resCart] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/lancamentos/"),
-        fetch("http://127.0.0.1:8000/api/categorias/"),
-        fetch("http://127.0.0.1:8000/api/bancos/"),
-        fetch("http://127.0.0.1:8000/api/cartoes/"),
+        fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/"),
+        fetch("https://victorrmendes.pythonanywhere.com/api/categorias/"),
+        fetch("https://victorrmendes.pythonanywhere.com/api/bancos/"),
+        fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/"),
       ]);
 
       setLancamentos(await resLanc.json());
@@ -84,7 +84,7 @@ export default function LancamentosPage() {
     };
 
     try {
-      const resposta = await fetch("http://127.0.0.1:8000/api/lancamentos/", {
+      const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -109,7 +109,7 @@ export default function LancamentosPage() {
     if (!window.confirm("Tem certeza que deseja apagar este lançamento?")) return;
 
     try {
-      const resposta = await fetch(`http://127.0.0.1:8000/api/lancamentos/${id}/`, {
+      const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/lancamentos/${id}/`, {
         method: "DELETE",
       });
 

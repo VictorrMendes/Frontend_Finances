@@ -22,7 +22,7 @@ export default function BancosPage() {
   }, []);
 
   const fetchBancos = () => {
-    fetch("http://127.0.0.1:8000/api/bancos/")
+    fetch("https://victorrmendes.pythonanywhere.com/api/bancos/")
       .then((resposta) => resposta.json())
       .then((dados) => {
         setBancos(dados);
@@ -39,7 +39,7 @@ export default function BancosPage() {
     setIsSubmitting(true);
 
     try {
-      const resposta = await fetch("http://127.0.0.1:8000/api/bancos/", {
+      const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/bancos/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -65,7 +65,7 @@ export default function BancosPage() {
     if (!window.confirm("Tem certeza que deseja excluir este banco? Lançamentos vinculados a ele podem ser afetados.")) return;
 
     try {
-      const resposta = await fetch(`http://127.0.0.1:8000/api/bancos/${id}/`, {
+      const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/bancos/${id}/`, {
         method: "DELETE",
       });
 

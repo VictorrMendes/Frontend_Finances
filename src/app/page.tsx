@@ -35,8 +35,8 @@ export default function Home() {
     async function carregarDados() {
       try {
         const [resLanc, resCat] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/lancamentos/"),
-          fetch("http://127.0.0.1:8000/api/categorias/"),
+          fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/"),
+          fetch("https://victorrmendes.pythonanywhere.com/api/categorias/"),
         ]);
         setLancamentos(await resLanc.json());
         setCategorias(await resCat.json());
