@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // <-- Importação adicionada
 import { CreditCard, Plus, Trash2 } from "lucide-react";
 
 interface Cartao {
@@ -22,13 +23,32 @@ export default function CartoesPage() {
   const [novoFechamento, setNovoFechamento] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const router = useRouter(); // <-- Roteador adicionado
+
   useEffect(() => {
     fetchCartoes();
   }, []);
 
   const fetchCartoes = () => {
-    fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/")
-      .then((resposta) => resposta.json())
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/", {
+      headers: {
+        "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+      }
+    })
+      .then((resposta) => {
+        if (resposta.status === 401) {
+          localStorage.removeItem("token");
+          router.push("/login");
+          throw new Error("Não autorizado");
+        }
+        return resposta.json();
+      })
       .then((dados) => {
         setCartoes(dados);
         setLoading(false);
@@ -43,10 +63,16 @@ export default function CartoesPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
     try {
       const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+        },
         body: JSON.stringify({
           nome: novoNome,
           limite: novoLimite || "0.00",
@@ -73,9 +99,15 @@ export default function CartoesPage() {
   const handleDeletarCartao = async (id: number) => {
     if (!window.confirm("Tem certeza que deseja excluir este cartão? Lançamentos vinculados a ele podem ser afetados.")) return;
 
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
     try {
       const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/cartoes/${id}/`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+        }
       });
 
       if (resposta.ok) {

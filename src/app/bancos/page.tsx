@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // <-- Importação adicionada
 import { Landmark, Plus, Trash2 } from "lucide-react";
 
 interface Banco {
@@ -17,13 +18,32 @@ export default function BancosPage() {
   const [novoSaldo, setNovoSaldo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const router = useRouter(); // <-- Roteador adicionado
+
   useEffect(() => {
     fetchBancos();
   }, []);
 
   const fetchBancos = () => {
-    fetch("https://victorrmendes.pythonanywhere.com/api/bancos/")
-      .then((resposta) => resposta.json())
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    fetch("https://victorrmendes.pythonanywhere.com/api/bancos/", {
+      headers: {
+        "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+      }
+    })
+      .then((resposta) => {
+        if (resposta.status === 401) {
+          localStorage.removeItem("token");
+          router.push("/login");
+          throw new Error("Não autorizado");
+        }
+        return resposta.json();
+      })
       .then((dados) => {
         setBancos(dados);
         setLoading(false);
@@ -38,10 +58,16 @@ export default function BancosPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
     try {
       const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/bancos/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+        },
         body: JSON.stringify({
           nome: novoNome,
           saldo_inicial: novoSaldo || "0.00",
@@ -60,13 +86,18 @@ export default function BancosPage() {
     }
   };
 
-  // Função para deletar um banco
   const handleDeletarBanco = async (id: number) => {
     if (!window.confirm("Tem certeza que deseja excluir este banco? Lançamentos vinculados a ele podem ser afetados.")) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
 
     try {
       const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/bancos/${id}/`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+        }
       });
 
       if (resposta.ok) {

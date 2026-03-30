@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // <-- Importação do roteador
 import { Receipt, Plus, ArrowDownCircle, ArrowUpCircle, CreditCard as CardIcon, Trash2 } from "lucide-react";
 
 // Interfaces baseadas no nosso backend Django
@@ -39,20 +40,39 @@ export default function LancamentosPage() {
   const [parcelas, setParcelas] = useState("1");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const router = useRouter(); // <-- Roteador instanciado
+
   // Busca todos os dados quando a página carrega
   useEffect(() => {
     carregarTudo();
   }, []);
 
   const carregarTudo = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
     try {
-      // Fazemos as 4 buscas ao mesmo tempo para ser mais rápido
+      // Cria a configuração de cabeçalho com o token
+      const config = {
+        headers: { "Authorization": `Bearer ${token}` }
+      };
+
+      // Fazemos as 4 buscas ao mesmo tempo enviando o token
       const [resLanc, resCat, resBanc, resCart] = await Promise.all([
-        fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/"),
-        fetch("https://victorrmendes.pythonanywhere.com/api/categorias/"),
-        fetch("https://victorrmendes.pythonanywhere.com/api/bancos/"),
-        fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/"),
+        fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", config),
+        fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", config),
+        fetch("https://victorrmendes.pythonanywhere.com/api/bancos/", config),
+        fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/", config),
       ]);
+
+      if (resLanc.status === 401) {
+        localStorage.removeItem("token");
+        router.push("/login");
+        return;
+      }
 
       setLancamentos(await resLanc.json());
       setCategorias(await resCat.json());
@@ -70,6 +90,9 @@ export default function LancamentosPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
     // Monta o pacote de dados exato que o Django espera
     const payload = {
       tipo,
@@ -86,7 +109,10 @@ export default function LancamentosPage() {
     try {
       const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // <-- Token adicionado no cadastro
+        },
         body: JSON.stringify(payload),
       });
 
@@ -108,9 +134,15 @@ export default function LancamentosPage() {
     // Pede uma confirmação rápida para evitar cliques acidentais
     if (!window.confirm("Tem certeza que deseja apagar este lançamento?")) return;
 
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
     try {
       const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/lancamentos/${id}/`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}` // <-- Token adicionado na deleção
+        }
       });
 
       if (resposta.ok) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // <-- Adicionado para redirecionar
 import { ArrowUpCircle, ArrowDownCircle, CreditCard, DollarSign, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
@@ -31,15 +32,47 @@ export default function Home() {
   const [mesAtual, setMesAtual] = useState(new Date().getMonth() + 1);
   const [anoAtual, setAnoAtual] = useState(new Date().getFullYear());
 
+  const router = useRouter(); // <-- Inicializando o roteador
+
   useEffect(() => {
     async function carregarDados() {
+      // 1. Tenta pegar o token do navegador
+      const token = localStorage.getItem("token");
+
+      // 2. Se não tem token, joga o usuário para a tela de login
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       try {
+        // 3. Monta o pacote com o "crachá"
+        const config = {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        };
+
+        // Fazemos as buscas passando o token (usando seu link oficial de produção)
         const [resLanc, resCat] = await Promise.all([
-          fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/"),
-          fetch("https://victorrmendes.pythonanywhere.com/api/categorias/"),
+          fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", config),
+          fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", config),
         ]);
-        setLancamentos(await resLanc.json());
-        setCategorias(await resCat.json());
+
+        // 4. Se a API recusar o crachá (token expirado ou inválido)
+        if (resLanc.status === 401 || resCat.status === 401) {
+          localStorage.removeItem("token");
+          router.push("/login");
+          return;
+        }
+
+        const dadosLancamentos = await resLanc.json();
+        const dadosCategorias = await resCat.json();
+
+        // 5. Salva os dados SE forem arrays de verdade (evita o erro do .filter)
+        setLancamentos(Array.isArray(dadosLancamentos) ? dadosLancamentos : []);
+        setCategorias(Array.isArray(dadosCategorias) ? dadosCategorias : []);
+        
         setLoading(false);
       } catch (error) {
         console.error("Erro ao carregar dados do dashboard:", error);
@@ -47,7 +80,7 @@ export default function Home() {
       }
     }
     carregarDados();
-  }, []);
+  }, [router]);
 
   // --- NAVEGAÇÃO DOS MESES ---
   const irParaMesAnterior = () => {
@@ -78,7 +111,6 @@ export default function Home() {
     const d = new Date(l.data + "T00:00:00");
     const ano = d.getFullYear();
     const mes = d.getMonth() + 1;
-    // Pega tudo que for de anos anteriores, ou do mesmo ano mas meses anteriores
     return ano < anoAtual || (ano === anoAtual && mes < mesAtual);
   });
 
@@ -86,7 +118,6 @@ export default function Home() {
   const saidasAnteriores = lancamentosAnteriores.filter(l => l.tipo === "saida").reduce((acc, l) => acc + parseFloat(l.valor), 0);
   const creditosAnteriores = lancamentosAnteriores.filter(l => l.tipo === "credito").reduce((acc, l) => acc + parseFloat(l.valor), 0);
   
-  // Esse é o dinheiro (ou dívida) que "sobrou" e rolou para o mês atual
   const saldoAcumuladoAnterior = entradasAnteriores - saidasAnteriores - creditosAnteriores;
 
   // --- 2. FILTRO DO MÊS ATUAL SELECIONADO ---
@@ -100,10 +131,7 @@ export default function Home() {
   const totalSaidas = lancamentosFiltrados.filter((l) => l.tipo === "saida").reduce((acc, l) => acc + parseFloat(l.valor), 0);
   const totalCredito = lancamentosFiltrados.filter((l) => l.tipo === "credito").reduce((acc, l) => acc + parseFloat(l.valor), 0);
 
-  // Resultado exclusivo deste mês (sem contar o passado)
   const resultadoDoMes = totalEntradas - totalSaidas - totalCredito;
-  
-  // Saldo Total Final (O que rolou do passado + O que aconteceu neste mês)
   const saldoTotalAcumulado = saldoAcumuladoAnterior + resultadoDoMes;
 
   // --- 4. CÁLCULOS PARA O GRÁFICO (Gastos do Mês) ---
@@ -128,7 +156,7 @@ export default function Home() {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
   };
 
-  if (loading) return <div className="text-slate-500 animate-pulse">Calculando suas finanças...</div>;
+  if (loading) return <div className="text-slate-500 animate-pulse flex justify-center py-20">Verificando acesso e carregando finanças...</div>;
 
   return (
     <div className="max-w-6xl">
@@ -194,7 +222,6 @@ export default function Home() {
             </div>
           </div>
           
-          {/* Quebra detalhada do cálculo */}
           <div className="pt-3 mt-1 border-t border-slate-100">
             <div className="flex justify-between text-[11px] text-slate-400 mb-1">
               <span>Resultado do Mês:</span>

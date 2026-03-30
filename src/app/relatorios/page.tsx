@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // <-- Importação do roteador
 import { PieChart as ChartIcon } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -22,15 +23,38 @@ export default function RelatoriosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter(); // <-- Instância do roteador
+
   useEffect(() => {
     async function carregarDados() {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       try {
+        const config = {
+          headers: { "Authorization": `Bearer ${token}` }
+        };
+
         const [resLanc, resCat] = await Promise.all([
-          fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/"),
-          fetch("https://victorrmendes.pythonanywhere.com/api/categorias/"),
+          fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", config),
+          fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", config),
         ]);
-        setLancamentos(await resLanc.json());
-        setCategorias(await resCat.json());
+
+        if (resLanc.status === 401 || resCat.status === 401) {
+          localStorage.removeItem("token");
+          router.push("/login");
+          return;
+        }
+
+        const dadosLancamentos = await resLanc.json();
+        const dadosCategorias = await resCat.json();
+
+        setLancamentos(Array.isArray(dadosLancamentos) ? dadosLancamentos : []);
+        setCategorias(Array.isArray(dadosCategorias) ? dadosCategorias : []);
+        
         setLoading(false);
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
@@ -38,7 +62,7 @@ export default function RelatoriosPage() {
       }
     }
     carregarDados();
-  }, []);
+  }, [router]);
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);

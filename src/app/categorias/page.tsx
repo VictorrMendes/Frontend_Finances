@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // <-- Importação do roteador
 import { Tags, Plus, Tag, Trash2 } from "lucide-react";
 
 interface Categoria {
@@ -15,13 +16,32 @@ export default function CategoriasPage() {
   const [novaCategoria, setNovaCategoria] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const router = useRouter(); // <-- Instância do roteador
+
   useEffect(() => {
     fetchCategorias();
   }, []);
 
   const fetchCategorias = () => {
-    fetch("https://victorrmendes.pythonanywhere.com/api/categorias/")
-      .then((resposta) => resposta.json())
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", {
+      headers: {
+        "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+      }
+    })
+      .then((resposta) => {
+        if (resposta.status === 401) {
+          localStorage.removeItem("token");
+          router.push("/login");
+          throw new Error("Não autorizado");
+        }
+        return resposta.json();
+      })
       .then((dados) => {
         setCategorias(dados);
         setLoading(false);
@@ -36,10 +56,16 @@ export default function CategoriasPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
     try {
       const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+        },
         body: JSON.stringify({ nome: novaCategoria }),
       });
 
@@ -58,9 +84,15 @@ export default function CategoriasPage() {
   const handleDeletarCategoria = async (id: number) => {
     if (!window.confirm("Tem certeza que deseja excluir esta categoria?")) return;
 
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
     try {
       const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/categorias/${id}/`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
+        }
       });
 
       if (resposta.ok) {
