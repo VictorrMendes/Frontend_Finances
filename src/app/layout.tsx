@@ -9,7 +9,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Controle Financeiro",
   description: "MicroSaaS de Controle Financeiro Pessoal",
-  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: '/icon-192x192.jpg', 
+    apple: '/icon-192x192.jpg',
+  },
 };
 export const viewport: Viewport = {
   themeColor: "#2563eb",
