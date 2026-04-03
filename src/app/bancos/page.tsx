@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // <-- Importação adicionada
 import { Landmark, Plus, Trash2 } from "lucide-react";
+import { fetchWithAuth } from "@/lib/apiClient"; 
 
 interface Banco {
   id: number;
@@ -18,56 +18,33 @@ export default function BancosPage() {
   const [novoSaldo, setNovoSaldo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const router = useRouter(); // <-- Roteador adicionado
-
   useEffect(() => {
     fetchBancos();
   }, []);
 
-  const fetchBancos = () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    fetch("https://victorrmendes.pythonanywhere.com/api/bancos/", {
-      headers: {
-        "Authorization": `Bearer ${token}` // <-- Crachá adicionado
-      }
-    })
-      .then((resposta) => {
-        if (resposta.status === 401) {
-          localStorage.removeItem("token");
-          router.push("/login");
-          throw new Error("Não autorizado");
-        }
-        return resposta.json();
-      })
-      .then((dados) => {
+  // Convertido para async/await para ficar mais limpo
+  const fetchBancos = async () => {
+    try {
+      const resposta = await fetchWithAuth("/api/bancos/");
+      
+      if (resposta.ok) {
+        const dados = await resposta.json();
         setBancos(dados);
-        setLoading(false);
-      })
-      .catch((erro) => {
-        console.error("Erro ao buscar bancos:", erro);
-        setLoading(false);
-      });
+      }
+    } catch (erro) {
+      console.error("Erro ao buscar bancos:", erro);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAdicionarBanco = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
     try {
-      const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/bancos/", {
+      const resposta = await fetchWithAuth("/api/bancos/", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
-        },
         body: JSON.stringify({
           nome: novoNome,
           saldo_inicial: novoSaldo || "0.00",
@@ -89,15 +66,9 @@ export default function BancosPage() {
   const handleDeletarBanco = async (id: number) => {
     if (!window.confirm("Tem certeza que deseja excluir este banco? Lançamentos vinculados a ele podem ser afetados.")) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
     try {
-      const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/bancos/${id}/`, {
+      const resposta = await fetchWithAuth(`/api/bancos/${id}/`, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
-        }
       });
 
       if (resposta.ok) {

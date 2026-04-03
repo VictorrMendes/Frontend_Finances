@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // <-- Importação do roteador
 import { PieChart as ChartIcon } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { fetchWithAuth } from "@/lib/apiClient"; // <-- Nova importação
 
 interface Lancamento {
   id: number;
@@ -23,46 +23,29 @@ export default function RelatoriosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const router = useRouter(); // <-- Instância do roteador
-
   useEffect(() => {
     async function carregarDados() {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       try {
-        const config = {
-          headers: { "Authorization": `Bearer ${token}` }
-        };
-
         const [resLanc, resCat] = await Promise.all([
-          fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", config),
-          fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", config),
+          fetchWithAuth("/api/lancamentos/"),
+          fetchWithAuth("/api/categorias/"),
         ]);
 
-        if (resLanc.status === 401 || resCat.status === 401) {
-          localStorage.removeItem("token");
-          router.push("/login");
-          return;
+        if (resLanc.ok && resCat.ok) {
+          const dadosLancamentos = await resLanc.json();
+          const dadosCategorias = await resCat.json();
+
+          setLancamentos(Array.isArray(dadosLancamentos) ? dadosLancamentos : []);
+          setCategorias(Array.isArray(dadosCategorias) ? dadosCategorias : []);
         }
-
-        const dadosLancamentos = await resLanc.json();
-        const dadosCategorias = await resCat.json();
-
-        setLancamentos(Array.isArray(dadosLancamentos) ? dadosLancamentos : []);
-        setCategorias(Array.isArray(dadosCategorias) ? dadosCategorias : []);
-        
-        setLoading(false);
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
+      } finally {
         setLoading(false);
       }
     }
     carregarDados();
-  }, [router]);
+  }, []);
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
@@ -70,7 +53,6 @@ export default function RelatoriosPage() {
 
   if (loading) return <div className="text-slate-500 animate-pulse">Gerando relatórios...</div>;
 
-  // --- CÁLCULOS DO MÊS ATUAL ---
   const dataAtual = new Date();
   const mesAtual = dataAtual.getMonth() + 1;
   const anoAtual = dataAtual.getFullYear();
@@ -91,7 +73,6 @@ export default function RelatoriosPage() {
   const saldoMes = entradasMes - gastosMes;
   const taxaPoupanca = entradasMes > 0 ? ((saldoMes / entradasMes) * 100).toFixed(0) : "0";
 
-  // --- CÁLCULOS: GASTOS POR CATEGORIA (MÊS ATUAL) ---
   const gastosPorCategoria = lancamentosMesAtual
     .filter((l) => l.tipo === "saida" || l.tipo === "credito")
     .reduce((acc, l) => {
@@ -110,11 +91,10 @@ export default function RelatoriosPage() {
         porcentagem,
       };
     })
-    .sort((a, b) => b.valor - a.valor); // Ordena do maior pro menor gasto
+    .sort((a, b) => b.valor - a.valor); 
 
   const maxGastoCategoria = dadosCategorias.length > 0 ? dadosCategorias[0].valor : 1;
 
-  // --- CÁLCULOS: TENDÊNCIA DE 6 MESES ---
   const trendData = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date();
@@ -145,7 +125,6 @@ export default function RelatoriosPage() {
         <h1 className="text-2xl font-bold">Relatório Mensal</h1>
       </div>
 
-      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Entradas</p>
@@ -171,10 +150,7 @@ export default function RelatoriosPage() {
         </div>
       </div>
 
-      {/* Layout de Duas Colunas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Detalhamento por Categoria (Esquerda) */}
         <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos Detalhados</h2>
           {dadosCategorias.length === 0 ? (
@@ -202,7 +178,6 @@ export default function RelatoriosPage() {
           )}
         </div>
 
-        {/* Gráfico de Linha (Direita) */}
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de 6 meses</h2>
           <div className="h-72 w-full">

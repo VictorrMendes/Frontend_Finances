@@ -52,11 +52,14 @@ export function Sidebar() {
     setUsername(nomeSalvo);
   }, [pathname]);
 
-  // Função para deslogar
+  // Função para deslogar atualizada para os novos tokens
   const handleSair = () => {
     if (window.confirm("Tem certeza que deseja sair?")) {
-      localStorage.removeItem("token");
+      // Remove os DOIS tokens da nova arquitetura de segurança
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
       localStorage.removeItem("username");
+      
       setOpen(false); // Fecha o menu mobile se estiver aberto
       router.push("/login");
     }

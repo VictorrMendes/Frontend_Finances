@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // <-- Importação do roteador
 import { Tags, Plus, Tag, Trash2 } from "lucide-react";
+import { fetchWithAuth } from "@/lib/apiClient"; // <-- Nova importação
 
 interface Categoria {
   id: number;
@@ -16,62 +16,38 @@ export default function CategoriasPage() {
   const [novaCategoria, setNovaCategoria] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const router = useRouter(); // <-- Instância do roteador
-
   useEffect(() => {
     fetchCategorias();
   }, []);
 
-  const fetchCategorias = () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", {
-      headers: {
-        "Authorization": `Bearer ${token}` // <-- Crachá adicionado
-      }
-    })
-      .then((resposta) => {
-        if (resposta.status === 401) {
-          localStorage.removeItem("token");
-          router.push("/login");
-          throw new Error("Não autorizado");
-        }
-        return resposta.json();
-      })
-      .then((dados) => {
+  const fetchCategorias = async () => {
+    try {
+      const resposta = await fetchWithAuth("/api/categorias/");
+      
+      if (resposta.ok) {
+        const dados = await resposta.json();
         setCategorias(dados);
-        setLoading(false);
-      })
-      .catch((erro) => {
-        console.error("Erro ao buscar categorias:", erro);
-        setLoading(false);
-      });
+      }
+    } catch (erro) {
+      console.error("Erro ao buscar categorias:", erro);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAdicionarCategoria = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
     try {
-      const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", {
+      const resposta = await fetchWithAuth("/api/categorias/", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
-        },
         body: JSON.stringify({ nome: novaCategoria }),
       });
 
       if (resposta.ok) {
-        setNovaCategoria(""); // Limpa o campo
-        fetchCategorias(); // Recarrega a lista
+        setNovaCategoria(""); 
+        fetchCategorias(); 
       }
     } catch (erro) {
       console.error("Erro na requisição:", erro);
@@ -80,23 +56,16 @@ export default function CategoriasPage() {
     }
   };
 
-  // Nova Função de Deletar
   const handleDeletarCategoria = async (id: number) => {
     if (!window.confirm("Tem certeza que deseja excluir esta categoria?")) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
     try {
-      const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/categorias/${id}/`, {
+      const resposta = await fetchWithAuth(`/api/categorias/${id}/`, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}` // <-- Crachá adicionado
-        }
       });
 
       if (resposta.ok) {
-        fetchCategorias(); // Recarrega a lista após apagar
+        fetchCategorias(); 
       } else {
         alert("Erro ao excluir. Verifique se existem lançamentos usando esta categoria.");
       }
@@ -112,7 +81,6 @@ export default function CategoriasPage() {
         <h1 className="text-2xl font-bold">Minhas Categorias</h1>
       </div>
 
-      {/* Formulário (já responsivo flex-col no mobile) */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
         <h2 className="text-lg font-semibold mb-4 text-slate-800">Adicionar nova categoria</h2>
         <form onSubmit={handleAdicionarCategoria} className="flex flex-col md:flex-row gap-4 items-end">
@@ -138,7 +106,6 @@ export default function CategoriasPage() {
         </form>
       </div>
 
-      {/* Lista de Categorias no formato Grid */}
       {loading ? (
         <p className="text-slate-500 animate-pulse">Carregando categorias...</p>
       ) : (
@@ -160,7 +127,6 @@ export default function CategoriasPage() {
                   </span>
                 </div>
                 
-                {/* Botão Lixeira */}
                 <button
                   onClick={() => handleDeletarCategoria(categoria.id)}
                   className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition shrink-0"

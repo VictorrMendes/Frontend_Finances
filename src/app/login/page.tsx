@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, User, LogIn, UserPlus } from "lucide-react";
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true); // Controla se estamos na tela de Login ou Cadastro
+  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [erro, setErro] = useState("");
@@ -13,6 +13,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
+
+  // URL base dinâmica: usa a variável de ambiente em produção ou localhost no desenvolvimento
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://victorrmendes.pythonanywhere.com";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +26,7 @@ export default function LoginPage() {
     try {
       if (isLogin) {
         // --- FLUXO DE LOGIN ---
-        const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/token/", {
+        const resposta = await fetch(`${API_URL}/api/token/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
@@ -31,15 +34,19 @@ export default function LoginPage() {
 
         if (resposta.ok) {
           const dados = await resposta.json();
-          localStorage.setItem("token", dados.access);
+          
+          // ALTERAÇÃO CRÍTICA: Salvando os dois tokens com os nomes que o apiClient.ts espera
+          localStorage.setItem("access_token", dados.access);
+          localStorage.setItem("refresh_token", dados.refresh);
           localStorage.setItem("username", username);
+          
           router.push("/"); 
         } else {
           setErro("Usuário ou senha incorretos.");
         }
       } else {
         // --- FLUXO DE CADASTRO ---
-        const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/usuarios/registrar/", {
+        const resposta = await fetch(`${API_URL}/api/usuarios/registrar/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
@@ -139,7 +146,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Botão para alternar entre Login e Cadastro */}
         <div className="mt-6 text-center text-sm text-slate-500">
           {isLogin ? "Ainda não tem uma conta? " : "Já possui uma conta? "}
           <button

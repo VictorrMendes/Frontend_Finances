@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // <-- Importação do roteador
 import { Receipt, Plus, ArrowDownCircle, ArrowUpCircle, CreditCard as CardIcon, Trash2 } from "lucide-react";
+import { fetchWithAuth } from "@/lib/apiClient"; // <-- Nova importação
 
-// Interfaces baseadas no nosso backend Django
 interface Categoria { id: number; nome: string; }
 interface Banco { id: number; nome: string; }
 interface Cartao { id: number; nome: string; }
@@ -14,7 +13,7 @@ interface Lancamento {
   descricao: string;
   valor: string;
   data: string;
-  categoria: number; // ID da categoria
+  categoria: number;
   banco: number | null;
   cartao: number | null;
   parcelas: number;
@@ -22,66 +21,44 @@ interface Lancamento {
 }
 
 export default function LancamentosPage() {
-  // Estados para as listas vindas da API
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [bancos, setBancos] = useState<Banco[]>([]);
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados do Formulário
   const [tipo, setTipo] = useState<"entrada" | "saida" | "credito">("saida");
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
-  const [data, setData] = useState(new Date().toISOString().split("T")[0]); // Data de hoje
+  const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [categoriaId, setCategoriaId] = useState("");
   const [bancoId, setBancoId] = useState("");
   const [cartaoId, setCartaoId] = useState("");
   const [parcelas, setParcelas] = useState("1");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const router = useRouter(); // <-- Roteador instanciado
-
-  // Busca todos os dados quando a página carrega
   useEffect(() => {
     carregarTudo();
   }, []);
 
   const carregarTudo = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
     try {
-      // Cria a configuração de cabeçalho com o token
-      const config = {
-        headers: { "Authorization": `Bearer ${token}` }
-      };
-
-      // Fazemos as 4 buscas ao mesmo tempo enviando o token
+      // O apiClient cuida do token em todas as chamadas!
       const [resLanc, resCat, resBanc, resCart] = await Promise.all([
-        fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", config),
-        fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", config),
-        fetch("https://victorrmendes.pythonanywhere.com/api/bancos/", config),
-        fetch("https://victorrmendes.pythonanywhere.com/api/cartoes/", config),
+        fetchWithAuth("/api/lancamentos/"),
+        fetchWithAuth("/api/categorias/"),
+        fetchWithAuth("/api/bancos/"),
+        fetchWithAuth("/api/cartoes/"),
       ]);
 
-      if (resLanc.status === 401) {
-        localStorage.removeItem("token");
-        router.push("/login");
-        return;
-      }
-
-      setLancamentos(await resLanc.json());
-      setCategorias(await resCat.json());
-      setBancos(await resBanc.json());
-      setCartoes(await resCart.json());
+      if (resLanc.ok) setLancamentos(await resLanc.json());
+      if (resCat.ok) setCategorias(await resCat.json());
+      if (resBanc.ok) setBancos(await resBanc.json());
+      if (resCart.ok) setCartoes(await resCart.json());
       
-      setLoading(false);
     } catch (erro) {
       console.error("Erro ao carregar dados:", erro);
+    } finally {
       setLoading(false);
     }
   };
@@ -90,10 +67,6 @@ export default function LancamentosPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
-    // Monta o pacote de dados exato que o Django espera
     const payload = {
       tipo,
       descricao,
@@ -107,17 +80,12 @@ export default function LancamentosPage() {
     };
 
     try {
-      const resposta = await fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", {
+      const resposta = await fetchWithAuth("/api/lancamentos/", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // <-- Token adicionado no cadastro
-        },
         body: JSON.stringify(payload),
       });
 
       if (resposta.ok) {
-        // Limpa form e atualiza lista
         setDescricao("");
         setValor("");
         carregarTudo(); 
@@ -129,24 +97,16 @@ export default function LancamentosPage() {
     }
   };
 
-  // Função para deletar um lançamento
   const handleDeletarLancamento = async (id: number) => {
-    // Pede uma confirmação rápida para evitar cliques acidentais
     if (!window.confirm("Tem certeza que deseja apagar este lançamento?")) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
     try {
-      const resposta = await fetch(`https://victorrmendes.pythonanywhere.com/api/lancamentos/${id}/`, {
+      const resposta = await fetchWithAuth(`/api/lancamentos/${id}/`, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}` // <-- Token adicionado na deleção
-        }
       });
 
       if (resposta.ok) {
-        carregarTudo(); // Recarrega a tabela automaticamente
+        carregarTudo();
       } else {
         console.error("Erro ao deletar lançamento.");
       }
@@ -159,7 +119,6 @@ export default function LancamentosPage() {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(valor));
   };
 
-  // Função auxiliar para achar o nome da categoria na lista
   const getNomeCategoria = (id: number) => categorias.find((c) => c.id === id)?.nome || "Sem categoria";
 
   return (
@@ -169,12 +128,10 @@ export default function LancamentosPage() {
         <h1 className="text-2xl font-bold">Lançamentos</h1>
       </div>
 
-      {/* Formulário de Novo Lançamento */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
         <h2 className="text-lg font-semibold mb-4 text-slate-800">Novo lançamento</h2>
         <form onSubmit={handleAdicionarLancamento} className="space-y-4">
           
-          {/* Linha 1 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">Tipo</label>
@@ -206,7 +163,6 @@ export default function LancamentosPage() {
             </div>
           </div>
 
-          {/* Linha 2 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">Data</label>
@@ -227,7 +183,6 @@ export default function LancamentosPage() {
               </select>
             </div>
 
-            {/* Renderização Condicional: Mostra Banco ou Cartão dependendo do Tipo */}
             {tipo === "credito" ? (
               <>
                 <div>
@@ -277,7 +232,6 @@ export default function LancamentosPage() {
         </form>
       </div>
 
-      {/* Tabela de Lançamentos Responsiva e Compacta para Mobile */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-3 md:p-4 border-b border-slate-200 bg-slate-50 font-semibold text-slate-700 text-sm md:text-base">
           Histórico de Lançamentos
@@ -286,11 +240,9 @@ export default function LancamentosPage() {
           <div className="p-8 text-center text-slate-500">Carregando dados...</div>
         ) : (
           <div className="overflow-x-auto">
-            {/* Reduzimos o min-w e diminuimos a fonte no celular (text-xs) */}
             <table className="w-full text-left text-xs md:text-sm min-w-[450px] md:min-w-[600px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
                 <tr>
-                  {/* Trocamos p-4 por px-2 py-3 no mobile, md:p-4 nas telas maiores */}
                   <th className="px-2 py-3 md:p-4 font-medium">Data</th>
                   <th className="px-2 py-3 md:p-4 font-medium">Descrição</th>
                   <th className="px-2 py-3 md:p-4 font-medium">Categoria</th>
@@ -304,7 +256,6 @@ export default function LancamentosPage() {
                     <td colSpan={5} className="p-8 text-center text-slate-500">Nenhum lançamento registrado.</td>
                   </tr>
                 ) : (
-                  // Invertemos a ordem para mostrar os mais novos primeiro
                   [...lancamentos].reverse().map((l) => (
                     <tr key={l.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
                       <td className="px-2 py-3 md:p-4 text-slate-500 whitespace-nowrap">
@@ -316,7 +267,6 @@ export default function LancamentosPage() {
                           {l.tipo === 'credito' && <CardIcon size={14} className="text-orange-500 shrink-0 md:w-4 md:h-4" />}
                           {l.tipo === 'saida' && <ArrowDownCircle size={14} className="text-red-500 shrink-0 md:w-4 md:h-4" />}
                           
-                          {/* O truncate max-w evita que descrições gigantes quebrem o layout no mobile */}
                           <span className="truncate max-w-[120px] sm:max-w-none">{l.descricao}</span>
                           
                           {l.parcelas > 1 && (
@@ -340,7 +290,6 @@ export default function LancamentosPage() {
                           className="p-1.5 md:p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
                           title="Excluir lançamento"
                         >
-                          {/* Ícone um pouquinho menor no mobile */}
                           <Trash2 size={16} className="md:w-5 md:h-5" />
                         </button>
                       </td>
