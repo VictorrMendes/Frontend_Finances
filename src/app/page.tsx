@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // <-- Adicionado para redirecionar
+import { useRouter } from "next/navigation";
 import { ArrowUpCircle, ArrowDownCircle, CreditCard, DollarSign, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { fetchWithAuth } from "@/lib/apiClient"; // <-- IMPORTANTE: Usando seu novo cliente de API
 
 interface Lancamento {
   id: number;
@@ -28,48 +29,38 @@ export default function Home() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para o Filtro de Data
   const [mesAtual, setMesAtual] = useState(new Date().getMonth() + 1);
   const [anoAtual, setAnoAtual] = useState(new Date().getFullYear());
 
-  const router = useRouter(); // <-- Inicializando o roteador
+  const router = useRouter();
 
   useEffect(() => {
     async function carregarDados() {
-      // 1. Tenta pegar o token do navegador
-      const token = localStorage.getItem("token");
+      // 1. Verificamos apenas a "bandeira" de login no localStorage
+      const isLogged = localStorage.getItem("is_logged");
 
-      // 2. Se não tem token, joga o usuário para a tela de login
-      if (!token) {
+      if (!isLogged) {
         router.push("/login");
         return;
       }
 
       try {
-        // 3. Monta o pacote com o "crachá"
-        const config = {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        };
-
-        // Fazemos as buscas passando o token (usando seu link oficial de produção)
+        // 2. Usamos o fetchWithAuth que já envia os cookies automaticamente
         const [resLanc, resCat] = await Promise.all([
-          fetch("https://victorrmendes.pythonanywhere.com/api/lancamentos/", config),
-          fetch("https://victorrmendes.pythonanywhere.com/api/categorias/", config),
+          fetchWithAuth("/api/lancamentos/"),
+          fetchWithAuth("/api/categorias/"),
         ]);
 
-        // 4. Se a API recusar o crachá (token expirado ou inválido)
-        if (resLanc.status === 401 || resCat.status === 401) {
-          localStorage.removeItem("token");
-          router.push("/login");
-          return;
+        // 3. O fetchWithAuth já cuida do erro 401 internamente, 
+        // mas garantimos a segurança aqui também.
+        if (!resLanc.ok || !resCat.ok) {
+           router.push("/login");
+           return;
         }
 
         const dadosLancamentos = await resLanc.json();
         const dadosCategorias = await resCat.json();
 
-        // 5. Salva os dados SE forem arrays de verdade (evita o erro do .filter)
         setLancamentos(Array.isArray(dadosLancamentos) ? dadosLancamentos : []);
         setCategorias(Array.isArray(dadosCategorias) ? dadosCategorias : []);
         
@@ -82,7 +73,7 @@ export default function Home() {
     carregarDados();
   }, [router]);
 
-  // --- NAVEGAÇÃO DOS MESES ---
+  // --- NAVEGAÇÃO DOS MESES (Lógica mantida igual) ---
   const irParaMesAnterior = () => {
     if (mesAtual === 1) {
       setMesAtual(12);
@@ -106,7 +97,7 @@ export default function Home() {
     setAnoAtual(new Date().getFullYear());
   };
 
-  // --- 1. CÁLCULO DO SALDO ACUMULADO (Tudo antes do mês selecionado) ---
+  // --- CÁLCULOS (Lógica mantida igual) ---
   const lancamentosAnteriores = lancamentos.filter((l) => {
     const d = new Date(l.data + "T00:00:00");
     const ano = d.getFullYear();
@@ -120,13 +111,11 @@ export default function Home() {
   
   const saldoAcumuladoAnterior = entradasAnteriores - saidasAnteriores - creditosAnteriores;
 
-  // --- 2. FILTRO DO MÊS ATUAL SELECIONADO ---
   const lancamentosFiltrados = lancamentos.filter((l) => {
     const d = new Date(l.data + "T00:00:00");
     return d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual;
   });
 
-  // --- 3. CÁLCULOS DOS CARDS RESUMO (Mês Selecionado) ---
   const totalEntradas = lancamentosFiltrados.filter((l) => l.tipo === "entrada").reduce((acc, l) => acc + parseFloat(l.valor), 0);
   const totalSaidas = lancamentosFiltrados.filter((l) => l.tipo === "saida").reduce((acc, l) => acc + parseFloat(l.valor), 0);
   const totalCredito = lancamentosFiltrados.filter((l) => l.tipo === "credito").reduce((acc, l) => acc + parseFloat(l.valor), 0);
@@ -134,7 +123,6 @@ export default function Home() {
   const resultadoDoMes = totalEntradas - totalSaidas - totalCredito;
   const saldoTotalAcumulado = saldoAcumuladoAnterior + resultadoDoMes;
 
-  // --- 4. CÁLCULOS PARA O GRÁFICO (Gastos do Mês) ---
   const gastos = lancamentosFiltrados.filter((l) => l.tipo === "saida" || l.tipo === "credito");
   
   const gastosPorCategoria = gastos.reduce((acc, l) => {
@@ -160,19 +148,19 @@ export default function Home() {
 
   return (
     <div className="max-w-6xl">
-      {/* Cabeçalho com Filtro de Mês Responsivo */}
+      {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold mb-1 text-slate-800">Visão Geral</h1>
-          <p className="text-slate-500 text-sm">Acompanhe o resumo das suas finanças neste período.</p>
+          <p className="text-slate-500 text-sm">Acompanhe o resumo das suas finanças.</p>
         </div>
 
-        {/* Componente de Navegação de Mês */}
+        {/* Navegação de Mês */}
         <div className="flex items-center bg-white border border-slate-200 shadow-sm rounded-xl p-1 w-full md:w-auto justify-between">
           <button onClick={irParaMesAnterior} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition">
             <ChevronLeft size={20} />
           </button>
-          <div className="flex items-center gap-2 px-4 min-w-[160px] justify-center text-slate-700 font-semibold cursor-pointer hover:text-blue-600 transition" onClick={irParaHoje} title="Voltar para o mês atual">
+          <div className="flex items-center gap-2 px-4 min-w-[160px] justify-center text-slate-700 font-semibold cursor-pointer" onClick={irParaHoje}>
             <Calendar size={16} className="text-blue-500" />
             <span>{MESES[mesAtual - 1]} {anoAtual}</span>
           </div>
@@ -188,7 +176,7 @@ export default function Home() {
           <p className="text-sm font-medium text-slate-500 mb-1">Entradas</p>
           <div className="flex justify-between items-start">
             <h3 className="text-2xl font-bold text-slate-800">{formatarMoeda(totalEntradas)}</h3>
-            <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600 shrink-0"><ArrowUpCircle size={20} /></div>
+            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><ArrowUpCircle size={20} /></div>
           </div>
         </div>
 
@@ -196,7 +184,7 @@ export default function Home() {
           <p className="text-sm font-medium text-slate-500 mb-1">Saídas (Débito)</p>
           <div className="flex justify-between items-start">
             <h3 className="text-2xl font-bold text-slate-800">{formatarMoeda(totalSaidas)}</h3>
-            <div className="p-2 bg-red-100 rounded-lg text-red-600 shrink-0"><ArrowDownCircle size={20} /></div>
+            <div className="p-2 bg-red-100 text-red-600 rounded-lg"><ArrowDownCircle size={20} /></div>
           </div>
         </div>
 
@@ -204,65 +192,43 @@ export default function Home() {
           <p className="text-sm font-medium text-slate-500 mb-1">Fatura (Crédito)</p>
           <div className="flex justify-between items-start">
             <h3 className="text-2xl font-bold text-slate-800">{formatarMoeda(totalCredito)}</h3>
-            <div className="p-2 bg-orange-100 rounded-lg text-orange-600 shrink-0"><CreditCard size={20} /></div>
+            <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><CreditCard size={20} /></div>
           </div>
         </div>
 
-        {/* Novo Card de Saldo Acumulado */}
         <div className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 ${saldoTotalAcumulado >= 0 ? 'border-l-blue-500' : 'border-l-red-500'}`}>
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <p className="text-sm font-medium text-slate-500 mb-1">Saldo Atual</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Saldo Atual</p>
+            <div className="flex justify-between items-start">
               <h3 className={`text-2xl font-bold ${saldoTotalAcumulado >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                 {formatarMoeda(saldoTotalAcumulado)}
               </h3>
+              <div className={`p-2 rounded-lg ${saldoTotalAcumulado >= 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}><DollarSign size={20} /></div>
             </div>
-            <div className={`p-2 rounded-lg shrink-0 ${saldoTotalAcumulado >= 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
-              <DollarSign size={20} />
+            <div className="pt-3 mt-1 border-t border-slate-100">
+                <div className="flex justify-between text-[11px] text-slate-400">
+                  <span>Resultado Mês:</span>
+                  <span className={resultadoDoMes >= 0 ? 'text-emerald-500' : 'text-red-500'}>{formatarMoeda(resultadoDoMes)}</span>
+                </div>
             </div>
-          </div>
-          
-          <div className="pt-3 mt-1 border-t border-slate-100">
-            <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-              <span>Resultado do Mês:</span>
-              <span className={`font-medium ${resultadoDoMes >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                {resultadoDoMes > 0 ? '+' : ''}{formatarMoeda(resultadoDoMes)}
-              </span>
-            </div>
-            <div className="flex justify-between text-[11px] text-slate-400">
-              <span>Mês Anterior:</span>
-              <span className={`font-medium ${saldoAcumuladoAnterior >= 0 ? 'text-blue-500' : 'text-red-500'}`}>
-                {saldoAcumuladoAnterior > 0 ? '+' : ''}{formatarMoeda(saldoAcumuladoAnterior)}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Área dos Gráficos */}
+      {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos por Categoria</h2>
           {dadosGrafico.length === 0 ? (
-            <p className="text-slate-500 text-center py-10">Não há gastos registrados em {MESES[mesAtual - 1]}.</p>
+            <p className="text-slate-500 text-center py-10">Sem gastos neste período.</p>
           ) : (
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={dadosGrafico}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {dadosGrafico.map((entry, index) => (
+                  <Pie data={dadosGrafico} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                    {dadosGrafico.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => formatarMoeda(Number(value as number))} />
+                  <Tooltip formatter={(value) => formatarMoeda(Number(value))} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -271,22 +237,16 @@ export default function Home() {
         </div>
         
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">Maiores Despesas do Mês</h2>
-          {dadosGrafico.length === 0 ? (
-            <p className="text-slate-500 text-center py-10">Sem despesas neste período.</p>
-          ) : (
-            <div className="space-y-4">
-              {dadosGrafico.slice(0, 5).map((item, index) => (
-                <div key={index} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CORES[index % CORES.length] }}></div>
-                    <span className="font-medium text-slate-700">{item.name}</span>
-                  </div>
-                  <span className="font-bold text-slate-800">{formatarMoeda(item.value)}</span>
-                </div>
-              ))}
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Maiores Despesas</h2>
+          {dadosGrafico.slice(0, 5).map((item, index) => (
+            <div key={index} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CORES[index % CORES.length] }}></div>
+                <span className="font-medium text-slate-700">{item.name}</span>
+              </div>
+              <span className="font-bold text-slate-800">{formatarMoeda(item.value)}</span>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </div>

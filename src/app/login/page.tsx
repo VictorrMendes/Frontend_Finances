@@ -13,8 +13,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
-
-  // URL base dinâmica: usa a variável de ambiente em produção ou localhost no desenvolvimento
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://victorrmendes.pythonanywhere.com";
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,27 +23,29 @@ export default function LoginPage() {
 
     try {
       if (isLogin) {
-        // --- FLUXO DE LOGIN ---
+        // --- LOGIN COM COOKIES ---
         const resposta = await fetch(`${API_URL}/api/token/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
+          credentials: "include", // ESSENCIAL para receber o cookie
         });
 
         if (resposta.ok) {
-          const dados = await resposta.json();
-          
-          // ALTERAÇÃO CRÍTICA: Salvando os dois tokens com os nomes que o apiClient.ts espera
-          localStorage.setItem("access_token", dados.access);
-          localStorage.setItem("refresh_token", dados.refresh);
+          // Os tokens agora estão protegidos no navegador (HttpOnly)
           localStorage.setItem("username", username);
+          localStorage.setItem("is_logged", "true");
           
+          // Limpa lixo de versões antigas do localStorage
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+
           router.push("/"); 
         } else {
           setErro("Usuário ou senha incorretos.");
         }
       } else {
-        // --- FLUXO DE CADASTRO ---
+        // --- CADASTRO ---
         const resposta = await fetch(`${API_URL}/api/usuarios/registrar/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -53,17 +53,16 @@ export default function LoginPage() {
         });
 
         if (resposta.ok) {
-          setSucesso("Conta criada com sucesso! Faça login para continuar.");
+          setSucesso("Conta criada com sucesso! Faça login.");
           setIsLogin(true); 
           setPassword(""); 
         } else {
           const dadosErro = await resposta.json();
-          const mensagem = dadosErro.username ? dadosErro.username[0] : "Erro ao criar conta. Tente outro usuário.";
-          setErro(mensagem);
+          setErro(dadosErro.username ? dadosErro.username[0] : "Erro ao criar conta.");
         }
       }
     } catch (error) {
-      setErro("Erro de conexão com o servidor. Verifique se o backend está rodando.");
+      setErro("Erro de conexão com o servidor.");
     } finally {
       setLoading(false);
     }
@@ -79,22 +78,10 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-slate-800">
             {isLogin ? "Bem-vindo de volta" : "Crie sua conta"}
           </h1>
-          <p className="text-slate-500 mt-2">
-            {isLogin ? "Faça login para acessar suas finanças" : "Comece a organizar seu dinheiro hoje"}
-          </p>
         </div>
 
-        {erro && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 text-center border border-red-100">
-            {erro}
-          </div>
-        )}
-
-        {sucesso && (
-          <div className="bg-emerald-50 text-emerald-600 p-3 rounded-lg text-sm mb-6 text-center border border-emerald-100">
-            {sucesso}
-          </div>
-        )}
+        {erro && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 text-center border border-red-100">{erro}</div>}
+        {sucesso && <div className="bg-emerald-50 text-emerald-600 p-3 rounded-lg text-sm mb-6 text-center border border-emerald-100">{sucesso}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -106,8 +93,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 required
-                className="w-full pl-10 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                placeholder="Seu nome de usuário"
+                className="w-full pl-10 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
@@ -123,9 +109,7 @@ export default function LoginPage() {
               <input
                 type="password"
                 required
-                minLength={6}
-                className="w-full pl-10 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                placeholder="••••••••"
+                className="w-full pl-10 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -135,27 +119,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
+            className="w-full bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {loading ? "Processando..." : (
-              <>
-                <span>{isLogin ? "Entrar no Sistema" : "Criar Conta"}</span>
-                {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />}
-              </>
-            )}
+            {loading ? "Processando..." : isLogin ? "Entrar no Sistema" : "Criar Conta"}
           </button>
         </form>
 
         <div className="mt-6 text-center text-sm text-slate-500">
-          {isLogin ? "Ainda não tem uma conta? " : "Já possui uma conta? "}
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setErro("");
-              setSucesso("");
-            }}
-            className="text-blue-600 font-semibold hover:underline"
-          >
+          <button onClick={() => setIsLogin(!isLogin)} className="text-blue-600 font-semibold hover:underline">
             {isLogin ? "Cadastre-se" : "Faça Login"}
           </button>
         </div>
