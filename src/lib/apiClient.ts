@@ -1,10 +1,10 @@
+// src/lib/apiClient.ts
 export async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
   const API_URL = "https://victorrmendes.pythonanywhere.com";
-  const url = `${API_URL}${endpoint}`;
   
-  const response = await fetch(url, {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
-    credentials: "include", // <--- ISSO DEVE ESTAR EM TODAS AS CHAMADAS
+    credentials: "include", // <--- ESSENCIAL PARA MANDAR O COOKIE
     headers: {
       ...options.headers,
       "Content-Type": "application/json",
@@ -12,18 +12,20 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
   });
 
   if (response.status === 401) {
-    // Tenta o refresh também com credentials: "include"
+    // Tenta renovar o token silenciosamente
     const refreshRes = await fetch(`${API_URL}/api/token/refresh/`, {
       method: "POST",
       credentials: "include",
     });
 
     if (refreshRes.ok) {
-      return fetch(url, { ...options, credentials: "include" });
+      // Se renovou, tenta a chamada original MAIS UMA VEZ
+      return fetch(`${API_URL}${endpoint}`, { ...options, credentials: "include" });
+    } else {
+      // SÓ DESLOGA SE O REFRESH REALMENTE FALHAR
+      localStorage.removeItem("is_logged");
+      window.location.href = "/login";
     }
-    // Se falhar, limpa e desloga
-    localStorage.clear();
-    window.location.href = "/login";
   }
 
   return response;
