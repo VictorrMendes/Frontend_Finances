@@ -25,23 +25,23 @@ const NavLinks = ({ closeMenu }: { closeMenu?: () => void }) => {
   ];
 
   return (
-    <>
+    <nav className="flex flex-col gap-1 px-2">
       {links.map((link) => (
         <Link
           key={link.href}
           href={link.href}
           onClick={closeMenu}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition text-sm font-medium ${
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
             pathname === link.href
-              ? "bg-slate-800 text-blue-300 font-semibold"
-              : "hover:bg-slate-800 text-slate-200"
+              ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 font-semibold"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
           }`}
         >
           <link.icon size={18} />
           <span>{link.label}</span>
         </Link>
       ))}
-    </>
+    </nav>
   );
 };
 
@@ -53,7 +53,6 @@ export function Sidebar() {
   const router = useRouter();
 
   useEffect(() => {
-    // SE FOR LOGIN OU RECUPERAÇÃO, NÃO BUSCA PERFIL (EVITA O LOOP)
     const publicRoutes = ["/login", "/redefinir-senha", "/recuperar-senha"];
     if (publicRoutes.includes(pathname)) return;
 
@@ -84,17 +83,16 @@ export function Sidebar() {
     }
   };
 
-  // NÃO RENDERIZA NADA SE FOR LOGIN
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/redefinir-senha") return null;
 
   const UserFooter = () => (
-    <div className="mt-auto pt-4 border-t border-slate-800 space-y-2">
+    <div className="mt-auto p-4 border-t border-slate-800 space-y-3">
       <Link 
         href="/perfil" 
         onClick={() => setOpen(false)}
-        className="group flex items-center gap-3 px-3 py-3 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-blue-500/50 transition-all"
+        className="group flex items-center gap-3 p-3 bg-slate-800/40 rounded-2xl border border-slate-700/50 hover:border-blue-500/50 transition-all"
       >
-        <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden shrink-0 border border-slate-600 group-hover:border-blue-400 transition-colors flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 border-slate-600 group-hover:border-blue-500 transition-all flex items-center justify-center">
           {userData?.foto ? (
             <img src={userData.foto} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
@@ -103,53 +101,58 @@ export function Sidebar() {
         </div>
         
         <div className="flex flex-col truncate flex-1">
-          <span className="text-sm font-semibold text-white truncate capitalize">
+          <span className="text-sm font-bold text-white truncate capitalize">
             {userData?.username || "Carregando..."}
           </span>
-          <span className="text-[10px] text-blue-400 font-medium flex items-center gap-1 group-hover:text-blue-300 transition-colors">
-            <Settings size={10} /> Editar Perfil
+          <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1 group-hover:text-blue-300">
+            <Settings size={10} /> Ver Perfil
           </span>
         </div>
       </Link>
       
       <button 
         onClick={handleSair}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors group"
+        className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-red-400 transition-colors"
       >
-        <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
-        Sair
+        <LogOut size={16} />
+        Sair do Sistema
       </button>
     </div>
   );
 
   return (
     <>
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-50">
-        <div className="text-lg font-bold text-blue-400">FinanceVM</div>
+      {/* HEADER MOBILE (FIXO NO TOPO) */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-950 border-b border-white/5 flex items-center justify-between px-4 z-[100] backdrop-blur-md">
+        <div className="text-lg font-black tracking-tighter text-white">
+          FINANCE<span className="text-blue-500">VM</span>
+        </div>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <button className="text-white p-2"><Menu size={24} /></button>
+            <button className="text-white p-2 bg-slate-900 rounded-lg"><Menu size={24} /></button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 bg-slate-900 p-4 pt-6 border-slate-800 text-white flex flex-col h-full">
-            <SheetHeader className="text-left mb-6">
-              <SheetTitle className="text-blue-400 font-bold text-xl">FinanceVM</SheetTitle>
-            </SheetHeader>
-            <nav className="flex flex-col gap-1 overflow-y-auto flex-1">
-              <NavLinks closeMenu={() => setOpen(false)} />
-            </nav>
+          <SheetContent side="left" className="w-72 bg-slate-950 p-0 border-r border-white/5 text-white flex flex-col h-full">
+            <div className="p-6">
+               <SheetHeader className="text-left">
+                <SheetTitle className="text-white font-black text-xl italic">FINANCE<span className="text-blue-500">VM</span></SheetTitle>
+              </SheetHeader>
+            </div>
+            <NavLinks closeMenu={() => setOpen(false)} />
             <UserFooter />
           </SheetContent>
         </Sheet>
       </header>
 
-      <aside className="hidden lg:flex w-64 bg-slate-900 text-white min-h-screen p-4 flex-col fixed left-0 top-0 bottom-0 border-r border-slate-800 shadow-2xl">
-        <div className="text-xl font-bold mb-8 px-4 text-blue-400 mt-4 flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-base">F</div>
-          FinanceVM
+      {/* ASIDE DESKTOP (FIXO NA ESQUERDA) */}
+      <aside className="hidden lg:flex w-64 bg-slate-950 text-white h-screen flex-col fixed left-0 top-0 bottom-0 border-r border-white/5 shadow-2xl z-[100]">
+        <div className="p-8">
+          <div className="text-2xl font-black tracking-tighter text-white italic">
+            FINANCE<span className="text-blue-500">VM</span>
+          </div>
         </div>
-        <nav className="flex flex-col gap-1 overflow-y-auto flex-1">
+        <div className="flex-1 overflow-y-auto">
           <NavLinks />
-        </nav>
+        </div>
         <UserFooter />
       </aside>
     </>

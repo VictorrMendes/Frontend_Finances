@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a", // Slate-900 para combinar com o novo design
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
@@ -26,13 +26,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.className} bg-slate-50 text-slate-900`}>
-        <div className="flex flex-col lg:flex-row min-h-screen">
+      <body className={`${inter.className} bg-slate-50 text-slate-900 antialiased`}>
+        {/* Container flexível principal */}
+        <div className="flex min-h-screen">
           <Sidebar />
-          {/* O margin-left 64 só deve existir se a sidebar existir. 
-              Como a sidebar some no login, o conteúdo deve ocupar a tela toda */}
-          <main className="flex-1 overflow-y-auto">
-            <div className="p-4 sm:p-6 lg:p-8">
+          
+          <main className="flex-1 w-full pt-16 lg:pt-0 lg:ml-64 transition-all duration-300">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
               {children}
             </div>
           </main>
