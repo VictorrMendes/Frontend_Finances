@@ -1,21 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { PieChart as ChartIcon } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-import { fetchWithAuth } from "@/lib/apiClient";
-
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { fetchWithAuth } from "@/lib/apiClient"; // <-- Nova importação
 
 interface Lancamento {
   id: number;
@@ -34,8 +22,6 @@ export default function RelatoriosPage() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function carregarDados() {
@@ -62,31 +48,10 @@ export default function RelatoriosPage() {
   }, []);
 
   const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(valor);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
   };
 
-  const baixarPDF = async () => {
-    if (!reportRef.current) return;
-
-    const canvas = await html2canvas(reportRef.current, {
-      scale: 2, // melhora qualidade
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const largura = 210;
-    const altura = (canvas.height * largura) / canvas.width;
-
-    pdf.addImage(imgData, "PNG", 0, 0, largura, altura);
-    pdf.save("relatorio-financeiro.pdf");
-  };
-
-  if (loading)
-    return <div className="text-slate-500 animate-pulse">Gerando relatórios...</div>;
+  if (loading) return <div className="text-slate-500 animate-pulse">Gerando relatórios...</div>;
 
   const dataAtual = new Date();
   const mesAtual = dataAtual.getMonth() + 1;
@@ -106,8 +71,7 @@ export default function RelatoriosPage() {
     .reduce((acc, l) => acc + parseFloat(l.valor), 0);
 
   const saldoMes = entradasMes - gastosMes;
-  const taxaPoupanca =
-    entradasMes > 0 ? ((saldoMes / entradasMes) * 100).toFixed(0) : "0";
+  const taxaPoupanca = entradasMes > 0 ? ((saldoMes / entradasMes) * 100).toFixed(0) : "0";
 
   const gastosPorCategoria = lancamentosMesAtual
     .filter((l) => l.tipo === "saida" || l.tipo === "credito")
@@ -121,42 +85,31 @@ export default function RelatoriosPage() {
       const cat = categorias.find((c) => c.id === parseInt(catId));
       const valor = gastosPorCategoria[parseInt(catId)];
       const porcentagem = gastosMes > 0 ? (valor / gastosMes) * 100 : 0;
-
       return {
         nome: cat ? cat.nome : "Outros",
         valor,
         porcentagem,
       };
     })
-    .sort((a, b) => b.valor - a.valor);
+    .sort((a, b) => b.valor - a.valor); 
 
-  const maxGastoCategoria =
-    dadosCategorias.length > 0 ? dadosCategorias[0].valor : 1;
+  const maxGastoCategoria = dadosCategorias.length > 0 ? dadosCategorias[0].valor : 1;
 
   const trendData = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
-
     const m = d.getMonth() + 1;
     const y = d.getFullYear();
-
-    const nomeMes = d
-      .toLocaleString("pt-BR", { month: "short" })
-      .toUpperCase();
+    const nomeMes = d.toLocaleString("pt-BR", { month: "short" }).toUpperCase();
 
     const lancMes = lancamentos.filter((l) => {
       const lDate = new Date(l.data + "T00:00:00");
       return lDate.getMonth() + 1 === m && lDate.getFullYear() === y;
     });
 
-    const entradas = lancMes
-      .filter((l) => l.tipo === "entrada")
-      .reduce((sum, l) => sum + parseFloat(l.valor), 0);
-
-    const gastos = lancMes
-      .filter((l) => l.tipo === "saida" || l.tipo === "credito")
-      .reduce((sum, l) => sum + parseFloat(l.valor), 0);
+    const entradas = lancMes.filter((l) => l.tipo === "entrada").reduce((sum, l) => sum + parseFloat(l.valor), 0);
+    const gastos = lancMes.filter((l) => l.tipo === "saida" || l.tipo === "credito").reduce((sum, l) => sum + parseFloat(l.valor), 0);
 
     trendData.push({
       name: nomeMes,
@@ -167,68 +120,82 @@ export default function RelatoriosPage() {
 
   return (
     <div className="max-w-6xl">
-      {/* BOTÃO PDF */}
-      <button
-        onClick={baixarPDF}
-        className="mb-6 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-      >
-        Baixar PDF
-      </button>
+      <div className="flex items-center gap-3 mb-8">
+        <ChartIcon className="text-blue-600" size={28} />
+        <h1 className="text-2xl font-bold">Relatório Mensal</h1>
+      </div>
 
-      {/* CONTEÚDO DO RELATÓRIO */}
-      <div ref={reportRef} className="bg-white p-4">
-        <div className="flex items-center gap-3 mb-8">
-          <ChartIcon className="text-blue-600" size={28} />
-          <h1 className="text-2xl font-bold">Relatório Mensal</h1>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Entradas</p>
+          <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(entradasMes)}</h3>
+          <p className="text-xs text-slate-400 mt-1">no mês atual</p>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Gastos</p>
+          <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(gastosMes)}</h3>
+          <p className="text-xs text-slate-400 mt-1">débito + crédito</p>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Taxa Poupança</p>
+          <h3 className="text-xl font-bold text-blue-600">{taxaPoupanca}%</h3>
+          <p className="text-xs text-slate-400 mt-1">do salário poupado</p>
+        </div>
+        <div className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 ${saldoMes >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Saldo Líquido</p>
+          <h3 className={`text-xl font-bold ${saldoMes >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {formatarMoeda(saldoMes)}
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">resultado do mês</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos Detalhados</h2>
+          {dadosCategorias.length === 0 ? (
+            <p className="text-slate-500 text-sm">Sem gastos registrados neste mês.</p>
+          ) : (
+            <div className="space-y-5">
+              {dadosCategorias.map((item, index) => (
+                <div key={index}>
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-sm font-medium text-slate-700">{item.nome}</span>
+                    <span className="text-sm font-bold text-slate-800">{formatarMoeda(item.valor)}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 rounded-full" 
+                        style={{ width: `${(item.valor / maxGastoCategoria) * 100}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs text-slate-400 w-8 text-right">{item.porcentagem.toFixed(0)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card title="Total Entradas" value={formatarMoeda(entradasMes)} color="emerald" />
-          <Card title="Total Gastos" value={formatarMoeda(gastosMes)} color="red" />
-          <Card title="Taxa Poupança" value={`${taxaPoupanca}%`} color="blue" />
-          <Card
-            title="Saldo Líquido"
-            value={formatarMoeda(saldoMes)}
-            color={saldoMes >= 0 ? "emerald" : "red"}
-          />
-        </div>
-
-        {/* GRÁFICO */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">
-            Tendência de 6 meses
-          </h2>
-
-          <div className="h-72">
+        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de 6 meses</h2>
+          <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
-                <Legend />
-                <Line type="monotone" dataKey="Entradas" stroke="#10b981" />
-                <Line type="monotone" dataKey="Gastos" stroke="#ef4444" />
+              <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `R$ ${val}`} />
+                <Tooltip formatter={(value) => formatarMoeda(Number(value))} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                <Line type="monotone" dataKey="Entradas" stroke="#10b981" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="Gastos" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
 
-/* COMPONENTE CARD */
-function Card({ title, value, color }: any) {
-  return (
-    <div
-      className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-${color}-500`}
-    >
-      <p className="text-xs text-slate-500">{title}</p>
-      <h3 className={`text-xl font-bold text-${color}-600`}>
-        {value}
-      </h3>
+      </div>
     </div>
   );
 }
