@@ -61,7 +61,8 @@ export function Sidebar() {
           setUserData({
             username: data.username,
             email: data.email,
-            foto: data.perfil?.foto 
+            // Atualizado para usar foto_url
+            foto: data.perfil?.foto_url 
           });
         }
       } catch (error) {
@@ -80,7 +81,7 @@ export function Sidebar() {
     }
   };
 
-  if (pathname === "/login" || pathname === "/redefinir-senha" || pathname === "/esqueceu-senha") return null;
+  if (pathname === "/login" || pathname === "/redefinir-senha" || pathname === "/recuperar-senha") return null;
 
   const UserFooter = () => (
     <div className="mt-auto pt-4 border-t border-slate-800 space-y-2">

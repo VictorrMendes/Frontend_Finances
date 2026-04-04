@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Mail, Phone, Camera, Save, Loader2 } from "lucide-react";
+import { User, Camera, Save, Loader2 } from "lucide-react";
 
 export default function PerfilPage() {
   const [userData, setUserData] = useState<any>(null);
@@ -22,7 +22,8 @@ export default function PerfilPage() {
       if (res.ok) {
         const data = await res.json();
         setUserData(data);
-        if (data.perfil?.foto) setPreview(data.perfil.foto);
+        // Atualizado para usar foto_url
+        if (data.perfil?.foto_url) setPreview(data.perfil.foto_url);
       }
     } catch (error) {
       console.error("Erro ao carregar perfil:", error);
@@ -48,8 +49,9 @@ export default function PerfilPage() {
       });
       if (res.ok) {
         alert("Perfil atualizado com sucesso!");
-        // Força reload para atualizar Sidebar se necessário
         window.location.reload(); 
+      } else {
+        alert("Erro ao salvar perfil.");
       }
     } catch (error) {
        console.error("Erro ao salvar:", error);
@@ -61,7 +63,6 @@ export default function PerfilPage() {
 
   if (loading) return <div className="p-8 text-center text-slate-500">Carregando perfil...</div>;
 
-  // Proteção contra a "Tela Branca" se a API falhar
   if (!userData) {
     return (
       <div className="p-8 text-center mt-10">
