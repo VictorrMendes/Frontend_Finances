@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { 
   ArrowUpCircle, ArrowDownCircle, CreditCard, DollarSign, 
   ChevronLeft, ChevronRight, Calendar, PiggyBank, 
-  Bell, AlertCircle, CheckCircle2, Clock, Plus, TrendingUp, TrendingDown
+  Bell, AlertCircle, CheckCircle2, Clock
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { fetchWithAuth } from "@/lib/apiClient"; 
@@ -55,7 +55,7 @@ export default function Home() {
 
   useEffect(() => {
     carregarDados();
-  }, [router, mesAtual, anoAtual]); // Recarrega se o mês mudar
+  }, [router, mesAtual, anoAtual]); 
 
   async function carregarDados() {
     const isLogged = localStorage.getItem("is_logged");
@@ -195,31 +195,19 @@ export default function Home() {
           <p className="text-slate-500 text-sm">Acompanhe o resumo das suas finanças e investimentos.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          {/* AÇÕES RÁPIDAS */}
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button onClick={() => router.push('/lancamentos?action=receita')} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg text-sm font-semibold transition border border-emerald-200 shadow-sm">
-              <Plus size={16} /> Receita
-            </button>
-            <button onClick={() => router.push('/lancamentos?action=despesa')} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-semibold transition border border-red-200 shadow-sm">
-              <Plus size={16} /> Despesa
-            </button>
+        <div className="flex items-center bg-white border border-slate-200 shadow-sm rounded-xl p-1 w-full md:w-auto justify-between">
+          <button onClick={irParaMesAnterior} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"><ChevronLeft size={20} /></button>
+          <div className="flex items-center gap-2 px-4 min-w-[150px] justify-center text-slate-700 font-semibold cursor-pointer" onClick={irParaHoje}>
+            <Calendar size={16} className="text-blue-500" />
+            <span>{MESES[mesAtual - 1]} {anoAtual}</span>
           </div>
-
-          <div className="flex items-center bg-white border border-slate-200 shadow-sm rounded-xl p-1 w-full sm:w-auto justify-between">
-            <button onClick={irParaMesAnterior} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"><ChevronLeft size={20} /></button>
-            <div className="flex items-center gap-2 px-4 min-w-[150px] justify-center text-slate-700 font-semibold cursor-pointer" onClick={irParaHoje}>
-              <Calendar size={16} className="text-blue-500" />
-              <span>{MESES[mesAtual - 1]} {anoAtual}</span>
-            </div>
-            <button onClick={irParaProximoMes} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"><ChevronRight size={20} /></button>
-          </div>
+          <button onClick={irParaProximoMes} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"><ChevronRight size={20} /></button>
         </div>
       </div>
 
       {/* CARDS PRINCIPAIS (SALDO E INVESTIMENTO) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Card de Saldo Projetado (Nova UI) */}
+        {/* Card de Saldo Projetado */}
         <div className={`bg-white p-5 rounded-2xl border shadow-sm ${saldoProjetado >= 0 ? 'border-blue-200' : 'border-red-200'}`}>
             <div className="flex justify-between items-start mb-2">
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Saldo Líquido Atual</p>
