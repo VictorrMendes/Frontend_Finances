@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Receipt, Plus, ArrowDownCircle, ArrowUpCircle, CreditCard as CardIcon, Trash2 } from "lucide-react";
-import { fetchWithAuth } from "@/lib/apiClient"; // <-- Nova importação
+import { Receipt, Plus, ArrowDownCircle, ArrowUpCircle, CreditCard as CardIcon, Trash2, PiggyBank, Reply } from "lucide-react";
+import { fetchWithAuth } from "@/lib/apiClient";
 
 interface Categoria { id: number; nome: string; }
 interface Banco { id: number; nome: string; }
 interface Cartao { id: number; nome: string; }
+interface Caixinha { id: number; nome: string; }
+
 interface Lancamento {
   id: number;
-  tipo: "entrada" | "saida" | "credito";
+  tipo: "entrada" | "saida" | "credito" | "deposito_caixinha" | "resgate_caixinha";
   descricao: string;
   valor: string;
   data: string;
   categoria: number;
   banco: number | null;
   cartao: number | null;
+  caixinha: number | null;
   parcelas: number;
   parcela_atual: number;
 }
@@ -25,15 +28,17 @@ export default function LancamentosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [bancos, setBancos] = useState<Banco[]>([]);
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
+  const [caixinhas, setCaixinhas] = useState<Caixinha[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [tipo, setTipo] = useState<"entrada" | "saida" | "credito">("saida");
+  const [tipo, setTipo] = useState<"entrada" | "saida" | "credito" | "deposito_caixinha" | "resgate_caixinha">("saida");
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [categoriaId, setCategoriaId] = useState("");
   const [bancoId, setBancoId] = useState("");
   const [cartaoId, setCartaoId] = useState("");
+  const [caixinhaId, setCaixinhaId] = useState("");
   const [parcelas, setParcelas] = useState("1");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,18 +48,19 @@ export default function LancamentosPage() {
 
   const carregarTudo = async () => {
     try {
-      // O apiClient cuida do token em todas as chamadas!
-      const [resLanc, resCat, resBanc, resCart] = await Promise.all([
+      const [resLanc, resCat, resBanc, resCart, resCaix] = await Promise.all([
         fetchWithAuth("/api/lancamentos/"),
         fetchWithAuth("/api/categorias/"),
         fetchWithAuth("/api/bancos/"),
         fetchWithAuth("/api/cartoes/"),
+        fetchWithAuth("/api/caixinhas/"),
       ]);
 
       if (resLanc.ok) setLancamentos(await resLanc.json());
       if (resCat.ok) setCategorias(await resCat.json());
       if (resBanc.ok) setBancos(await resBanc.json());
       if (resCart.ok) setCartoes(await resCart.json());
+      if (resCaix.ok) setCaixinhas(await resCaix.json());
       
     } catch (erro) {
       console.error("Erro ao carregar dados:", erro);
@@ -72,9 +78,10 @@ export default function LancamentosPage() {
       descricao,
       valor,
       data,
-      categoria: categoriaId ? parseInt(categoriaId) : null,
-      banco: tipo !== "credito" && bancoId ? parseInt(bancoId) : null,
+      categoria: (tipo === "deposito_caixinha" || tipo === "resgate_caixinha") ? null : (categoriaId ? parseInt(categoriaId) : null),
+      banco: (tipo === "saida" || tipo === "entrada" || tipo === "resgate_caixinha") && bancoId ? parseInt(bancoId) : null,
       cartao: tipo === "credito" && cartaoId ? parseInt(cartaoId) : null,
+      caixinha: (tipo === "deposito_caixinha" || tipo === "resgate_caixinha") && caixinhaId ? parseInt(caixinhaId) : null,
       parcelas: tipo === "credito" ? parseInt(parcelas) : 1,
       parcela_atual: 1,
     };
@@ -104,19 +111,14 @@ export default function LancamentosPage() {
       const resposta = await fetchWithAuth(`/api/lancamentos/${id}/`, {
         method: "DELETE",
       });
-
-      if (resposta.ok) {
-        carregarTudo();
-      } else {
-        console.error("Erro ao deletar lançamento.");
-      }
+      if (resposta.ok) carregarTudo();
     } catch (erro) {
       console.error("Erro na requisição:", erro);
     }
   };
 
-  const formatarMoeda = (valor: string) => {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(valor));
+  const formatarMoeda = (valor: string | number) => {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(valor));
   };
 
   const getNomeCategoria = (id: number) => categorias.find((c) => c.id === id)?.nome || "Sem categoria";
@@ -134,21 +136,24 @@ export default function LancamentosPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">Tipo</label>
+              <label className="block text-sm font-medium text-slate-600 mb-1">Tipo da Operação</label>
               <select
-                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
                 value={tipo}
-                onChange={(e) => setTipo(e.target.value as "entrada" | "saida" | "credito")}
+                onChange={(e) => setTipo(e.target.value as any)}
               >
                 <option value="saida">Saída (Débito)</option>
                 <option value="entrada">Entrada (Receita)</option>
                 <option value="credito">Crédito (Cartão)</option>
+                <option value="deposito_caixinha" className="text-purple-600 font-bold">💰 Guardar na Caixinha</option>
+                <option value="resgate_caixinha" className="text-blue-600 font-bold">🔄 Resgatar da Caixinha</option>
               </select>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-600 mb-1">Descrição</label>
               <input
-                type="text" required placeholder="Ex: Mercado, Salário..."
+                type="text" required 
+                placeholder={(tipo === 'deposito_caixinha' || tipo === 'resgate_caixinha') ? "Ex: Reserva de emergência" : "Ex: Mercado, Salário..."}
                 className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 value={descricao} onChange={(e) => setDescricao(e.target.value)}
               />
@@ -172,19 +177,60 @@ export default function LancamentosPage() {
                 value={data} onChange={(e) => setData(e.target.value)}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">Categoria</label>
-              <select
-                required className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-            </div>
 
-            {tipo === "credito" ? (
+            {/* SE FOR DEPÓSITO NA CAIXINHA */}
+            {tipo === "deposito_caixinha" && (
+              <div className="md:col-span-3">
+                <label className="block text-sm font-medium text-purple-600 mb-1">Para qual Caixinha?</label>
+                <select
+                  required className="w-full p-2 border border-purple-300 bg-purple-50 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  value={caixinhaId} onChange={(e) => setCaixinhaId(e.target.value)}
+                >
+                  <option value="">Selecione o destino...</option>
+                  {caixinhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* SE FOR RESGATE DA CAIXINHA */}
+            {tipo === "resgate_caixinha" && (
               <>
+                <div>
+                  <label className="block text-sm font-medium text-purple-600 mb-1">De qual Caixinha?</label>
+                  <select
+                    required className="w-full p-2 border border-purple-300 bg-purple-50 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    value={caixinhaId} onChange={(e) => setCaixinhaId(e.target.value)}
+                  >
+                    <option value="">Selecione a origem...</option>
+                    {caixinhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-blue-600 mb-1">Vai para qual Banco?</label>
+                  <select
+                    required className="w-full p-2 border border-blue-300 bg-blue-50 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={bancoId} onChange={(e) => setBancoId(e.target.value)}
+                  >
+                    <option value="">Selecione o banco de destino...</option>
+                    {bancos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* SE FOR CARTÃO DE CRÉDITO */}
+            {tipo === "credito" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">Categoria</label>
+                  <select
+                    required className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}
+                  >
+                    <option value="">Selecione...</option>
+                    {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">Cartão</label>
                   <select
@@ -206,27 +252,42 @@ export default function LancamentosPage() {
                   </select>
                 </div>
               </>
-            ) : (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-600 mb-1">Banco</label>
-                <select
-                  required className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  value={bancoId} onChange={(e) => setBancoId(e.target.value)}
-                >
-                  <option value="">Selecione...</option>
-                  {bancos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
-                </select>
-              </div>
+            )}
+
+            {/* SE FOR ENTRADA OU SAÍDA NORMAL */}
+            {(tipo === "entrada" || tipo === "saida") && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">Categoria</label>
+                  <select
+                    required className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}
+                  >
+                    <option value="">Selecione...</option>
+                    {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-600 mb-1">Banco</label>
+                  <select
+                    required className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={bancoId} onChange={(e) => setBancoId(e.target.value)}
+                  >
+                    <option value="">Selecione...</option>
+                    {bancos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
+                  </select>
+                </div>
+              </>
             )}
           </div>
 
           <div className="flex justify-end pt-2">
             <button
               type="submit" disabled={isSubmitting}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50"
+              className={`text-white px-6 py-2 rounded-lg font-medium transition flex items-center gap-2 disabled:opacity-50 ${(tipo === 'deposito_caixinha' || tipo === 'resgate_caixinha') ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
               <Plus size={18} />
-              {isSubmitting ? "Salvando..." : "Adicionar lançamento"}
+              {isSubmitting ? "Processando..." : ((tipo === 'deposito_caixinha' || tipo === 'resgate_caixinha') ? "Confirmar Operação" : "Adicionar Lançamento")}
             </button>
           </div>
         </form>
@@ -245,7 +306,7 @@ export default function LancamentosPage() {
                 <tr>
                   <th className="px-2 py-3 md:p-4 font-medium">Data</th>
                   <th className="px-2 py-3 md:p-4 font-medium">Descrição</th>
-                  <th className="px-2 py-3 md:p-4 font-medium">Categoria</th>
+                  <th className="px-2 py-3 md:p-4 font-medium">Categoria / Origem</th>
                   <th className="px-2 py-3 md:p-4 font-medium text-right">Valor</th>
                   <th className="px-2 py-3 md:p-4 font-medium text-center w-10 md:w-16">Ações</th>
                 </tr>
@@ -266,6 +327,8 @@ export default function LancamentosPage() {
                           {l.tipo === 'entrada' && <ArrowUpCircle size={14} className="text-emerald-500 shrink-0 md:w-4 md:h-4" />}
                           {l.tipo === 'credito' && <CardIcon size={14} className="text-orange-500 shrink-0 md:w-4 md:h-4" />}
                           {l.tipo === 'saida' && <ArrowDownCircle size={14} className="text-red-500 shrink-0 md:w-4 md:h-4" />}
+                          {l.tipo === 'deposito_caixinha' && <PiggyBank size={14} className="text-purple-500 shrink-0 md:w-4 md:h-4" />}
+                          {l.tipo === 'resgate_caixinha' && <Reply size={14} className="text-blue-500 shrink-0 md:w-4 md:h-4" />}
                           
                           <span className="truncate max-w-[120px] sm:max-w-none">{l.descricao}</span>
                           
@@ -277,12 +340,12 @@ export default function LancamentosPage() {
                         </div>
                       </td>
                       <td className="px-2 py-3 md:p-4 text-slate-500">
-                        <span className="bg-slate-100 px-1.5 py-1 md:px-2 md:py-1 rounded-md text-[10px] md:text-xs whitespace-nowrap">
-                          {getNomeCategoria(l.categoria)}
+                        <span className={`px-1.5 py-1 md:px-2 md:py-1 rounded-md text-[10px] md:text-xs whitespace-nowrap ${(l.tipo === 'deposito_caixinha' || l.tipo === 'resgate_caixinha') ? 'bg-purple-100 text-purple-700 font-semibold' : 'bg-slate-100'}`}>
+                          {(l.tipo === 'deposito_caixinha' || l.tipo === 'resgate_caixinha') ? 'Caixinha' : getNomeCategoria(l.categoria)}
                         </span>
                       </td>
-                      <td className={`px-2 py-3 md:p-4 text-right font-medium whitespace-nowrap ${l.tipo === 'entrada' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                        {l.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(l.valor)}
+                      <td className={`px-2 py-3 md:p-4 text-right font-medium whitespace-nowrap ${(l.tipo === 'entrada' || l.tipo === 'resgate_caixinha') ? 'text-emerald-600' : (l.tipo === 'deposito_caixinha' ? 'text-purple-600' : 'text-slate-800')}`}>
+                        {(l.tipo === 'entrada' || l.tipo === 'resgate_caixinha') ? '+' : '-'}{formatarMoeda(l.valor)}
                       </td>
                       <td className="px-2 py-3 md:p-4 text-center">
                         <button 
