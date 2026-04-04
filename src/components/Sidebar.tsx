@@ -25,7 +25,7 @@ const NavLinks = ({ closeMenu }: { closeMenu?: () => void }) => {
   ];
 
   return (
-    <nav className="flex flex-col gap-1 px-2">
+    <nav className="flex flex-col gap-1 px-4 py-2">
       {links.map((link) => (
         <Link
           key={link.href}
@@ -68,7 +68,7 @@ export function Sidebar() {
           });
         }
       } catch (error) {
-        console.error("Erro ao carregar perfil no sidebar:", error);
+        console.error("Erro ao carregar perfil:", error);
       }
     }
     carregarPerfil();
@@ -100,9 +100,9 @@ export function Sidebar() {
           )}
         </div>
         
-        <div className="flex flex-col truncate flex-1">
+        <div className="flex flex-col truncate flex-1 text-left">
           <span className="text-sm font-bold text-white truncate capitalize">
-            {userData?.username || "Carregando..."}
+            {userData?.username || "Usuário"}
           </span>
           <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1 group-hover:text-blue-300">
             <Settings size={10} /> Ver Perfil
@@ -112,10 +112,10 @@ export function Sidebar() {
       
       <button 
         onClick={handleSair}
-        className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-red-400 transition-colors"
+        className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-red-400 transition-colors"
       >
         <LogOut size={16} />
-        Sair do Sistema
+        Sair
       </button>
     </div>
   );
@@ -123,8 +123,8 @@ export function Sidebar() {
   return (
     <>
       {/* HEADER MOBILE (FIXO NO TOPO) */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-950 border-b border-white/5 flex items-center justify-between px-4 z-[100] backdrop-blur-md">
-        <div className="text-lg font-black tracking-tighter text-white">
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-950 border-b border-white/5 flex items-center justify-between px-4 z-[50]">
+        <div className="text-lg font-black tracking-tighter text-white italic">
           FINANCE<span className="text-blue-500">VM</span>
         </div>
         <Sheet open={open} onOpenChange={setOpen}>
@@ -133,18 +133,20 @@ export function Sidebar() {
           </SheetTrigger>
           <SheetContent side="left" className="w-72 bg-slate-950 p-0 border-r border-white/5 text-white flex flex-col h-full">
             <div className="p-6">
-               <SheetHeader className="text-left">
+              <SheetHeader className="text-left">
                 <SheetTitle className="text-white font-black text-xl italic">FINANCE<span className="text-blue-500">VM</span></SheetTitle>
               </SheetHeader>
             </div>
-            <NavLinks closeMenu={() => setOpen(false)} />
+            <div className="flex-1 overflow-y-auto">
+              <NavLinks closeMenu={() => setOpen(false)} />
+            </div>
             <UserFooter />
           </SheetContent>
         </Sheet>
       </header>
 
       {/* ASIDE DESKTOP (FIXO NA ESQUERDA) */}
-      <aside className="hidden lg:flex w-64 bg-slate-950 text-white h-screen flex-col fixed left-0 top-0 bottom-0 border-r border-white/5 shadow-2xl z-[100]">
+      <aside className="hidden lg:flex w-64 bg-slate-950 text-white h-screen flex-col fixed left-0 top-0 bottom-0 border-r border-white/5 shadow-2xl z-[40]">
         <div className="p-8">
           <div className="text-2xl font-black tracking-tighter text-white italic">
             FINANCE<span className="text-blue-500">VM</span>
