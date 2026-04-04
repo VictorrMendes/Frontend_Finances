@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchWithAuth } from "@/lib/apiClient";
-import { CalendarClock, CheckCircle2, Circle, Plus, Trash2, CalendarX2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, Circle, Plus, Trash2, CalendarX2, RefreshCw } from "lucide-react";
 
 interface Categoria {
   id: number;
@@ -28,6 +28,10 @@ export default function ContasAPagarPage() {
   const [valor, setValor] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
   const [categoria, setCategoria] = useState("");
+  
+  // Novos estados para a recorrência
+  const [isRecorrente, setIsRecorrente] = useState(false);
+  const [qtdMeses, setQtdMeses] = useState("12");
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
@@ -56,28 +60,53 @@ export default function ContasAPagarPage() {
     e.preventDefault();
     setSalvando(true);
 
-    const payload = {
-      descricao,
+    const payloadBase = {
       valor: parseFloat(valor.replace(",", ".")),
-      data_vencimento: dataVencimento,
       categoria: categoria ? parseInt(categoria) : null,
-      pago: false, // Toda conta nova entra como não paga
+      pago: false, 
     };
 
-    try {
-      const res = await fetchWithAuth("/api/contas-pagar/", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    // Usamos T12:00:00 para evitar que problemas de fuso horário recuem a data em 1 dia
+    const baseDate = new Date(dataVencimento + "T12:00:00");
+    const numMeses = isRecorrente ? parseInt(qtdMeses) : 1;
 
-      if (res.ok) {
-        const novaConta = await res.json();
-        setContas([...contas, novaConta].sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento)));
-        // Limpa o form
-        setDescricao(""); setValor(""); setDataVencimento(""); setCategoria("");
+    try {
+      const promises = [];
+
+      // Laço de repetição: Cria as contas pros próximos meses automaticamente
+      for (let i = 0; i < numMeses; i++) {
+        // Avança os meses mantendo o mesmo dia do vencimento original
+        const dataAtual = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+        const dataIso = dataAtual.toISOString().split('T')[0];
+        
+        // Se for recorrente, adiciona a tag (1/12), (2/12)...
+        const descFinal = isRecorrente ? `${descricao} (${i + 1}/${numMeses})` : descricao;
+
+        promises.push(
+          fetchWithAuth("/api/contas-pagar/", {
+            method: "POST",
+            body: JSON.stringify({ ...payloadBase, descricao: descFinal, data_vencimento: dataIso }),
+          })
+        );
+      }
+
+      // Dispara todas as requisições de uma vez
+      const responses = await Promise.all(promises);
+
+      if (responses.every(res => res.ok)) {
+        // Recarrega a lista toda do servidor para garantir que a ordenação fique perfeita
+        await carregarDados();
+        
+        // Limpa o formulário
+        setDescricao(""); 
+        setValor(""); 
+        setDataVencimento(""); 
+        setCategoria(""); 
+        setIsRecorrente(false);
+        setQtdMeses("12");
       }
     } catch (error) {
-      console.error("Erro ao salvar conta", error);
+      console.error("Erro ao salvar conta(s)", error);
     } finally {
       setSalvando(false);
     }
@@ -140,7 +169,7 @@ export default function ContasAPagarPage() {
         <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <Plus size={20} className="text-blue-500" /> Agendar Nova Conta
         </h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start">
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-500 mb-1">Descrição</label>
             <input required type="text" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Ex: Aluguel, Internet..." className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition text-sm" />
@@ -150,12 +179,46 @@ export default function ContasAPagarPage() {
             <input required type="number" step="0.01" value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Vencimento</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Vencimento Inicial</label>
             <input required type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition text-sm" />
           </div>
-          <button disabled={salvando} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2.5 rounded-xl transition shadow-sm disabled:opacity-50">
-            {salvando ? "Salvando..." : "Adicionar"}
-          </button>
+          <div className="pt-5">
+            <button disabled={salvando} type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2.5 rounded-xl transition shadow-sm disabled:opacity-50 h-[42px]">
+              {salvando ? "Salvando..." : "Adicionar"}
+            </button>
+          </div>
+
+          {/* NOVA OPÇÃO: CONTA RECORRENTE */}
+          <div className="md:col-span-5 flex flex-wrap items-center gap-4 mt-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+              <input 
+                type="checkbox" 
+                checked={isRecorrente} 
+                onChange={e => setIsRecorrente(e.target.checked)} 
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer" 
+              />
+              <RefreshCw size={16} className="text-blue-500" />
+              Tornar conta recorrente (Mensal)
+            </label>
+
+            {isRecorrente && (
+              <div className="flex items-center gap-2 ml-2 animate-in fade-in slide-in-from-left-4">
+                <span className="text-xs text-slate-500 font-medium border-l pl-4 border-slate-300">Por quantos meses?</span>
+                <select 
+                  value={qtdMeses} 
+                  onChange={e => setQtdMeses(e.target.value)} 
+                  className="p-1.5 text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-500 cursor-pointer font-medium text-slate-700"
+                >
+                  <option value="2">2 meses</option>
+                  <option value="3">3 meses</option>
+                  <option value="6">6 meses</option>
+                  <option value="12">1 ano (12x)</option>
+                  <option value="24">2 anos (24x)</option>
+                  <option value="60">5 anos (60x)</option>
+                </select>
+              </div>
+            )}
+          </div>
         </form>
       </div>
 
@@ -169,7 +232,7 @@ export default function ContasAPagarPage() {
               <p>Nenhuma conta pendente.</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
               {contas.filter(c => !c.pago).map(conta => {
                 const isAtrasada = conta.data_vencimento < hojeStr;
                 const isHoje = conta.data_vencimento === hojeStr;
@@ -190,7 +253,7 @@ export default function ContasAPagarPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="font-bold text-slate-800">{formatarMoeda(conta.valor)}</span>
-                      <button onClick={() => deletarConta(conta.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition p-2">
+                      <button onClick={() => deletarConta(conta.id)} className="text-slate-300 hover:text-red-500 opacity-0 lg:group-hover:opacity-100 transition p-2">
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -206,7 +269,7 @@ export default function ContasAPagarPage() {
       <div>
         <h3 className="text-slate-500 font-semibold mb-3">Histórico de Pagas</h3>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
             {contas.filter(c => c.pago).map(conta => (
               <div key={conta.id} className="p-4 flex items-center justify-between bg-slate-50 opacity-70 hover:opacity-100 transition group">
                 <div className="flex items-center gap-4">
@@ -220,7 +283,7 @@ export default function ContasAPagarPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-bold text-slate-500">{formatarMoeda(conta.valor)}</span>
-                  <button onClick={() => deletarConta(conta.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition p-2">
+                  <button onClick={() => deletarConta(conta.id)} className="text-slate-300 hover:text-red-500 opacity-0 lg:group-hover:opacity-100 transition p-2">
                     <Trash2 size={18} />
                   </button>
                 </div>
