@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PieChart as ChartIcon } from "lucide-react";
+import { PieChart as ChartIcon, CalendarDays } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { fetchWithAuth } from "@/lib/apiClient"; // <-- Nova importação
+import { fetchWithAuth } from "@/lib/apiClient";
 
 interface Lancamento {
   id: number;
-  tipo: "entrada" | "saida" | "credito";
+  tipo: "entrada" | "saida" | "credito" | "deposito_caixinha" | "resgate_caixinha";
   valor: string;
   data: string;
-  categoria: number;
+  categoria: number | null;
 }
 
 interface Categoria {
@@ -18,10 +18,15 @@ interface Categoria {
   nome: string;
 }
 
+type PeriodoFiltro = "mes" | "6meses" | "ano";
+
 export default function RelatoriosPage() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Novo estado para controlar o período do relatório
+  const [filtroPeriodo, setFiltroPeriodo] = useState<PeriodoFiltro>("6meses");
 
   useEffect(() => {
     async function carregarDados() {
@@ -51,40 +56,64 @@ export default function RelatoriosPage() {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
   };
 
-  if (loading) return <div className="text-slate-500 animate-pulse">Gerando relatórios...</div>;
+  if (loading) return <div className="text-slate-500 animate-pulse flex justify-center py-20">Gerando relatórios...</div>;
 
   const dataAtual = new Date();
   const mesAtual = dataAtual.getMonth() + 1;
   const anoAtual = dataAtual.getFullYear();
 
-  const lancamentosMesAtual = lancamentos.filter((l) => {
+  // Calcula a data de 6 meses atrás
+  const data6MesesAtras = new Date();
+  data6MesesAtras.setMonth(dataAtual.getMonth() - 5);
+  data6MesesAtras.setDate(1); // Começa no dia 1º daquele mês
+
+  // FILTRO INTELIGENTE: Pega apenas os lançamentos do período selecionado
+  const lancamentosFiltrados = lancamentos.filter((l) => {
     const d = new Date(l.data + "T00:00:00");
-    return d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual;
+    
+    if (filtroPeriodo === "mes") {
+      return d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual;
+    } else if (filtroPeriodo === "6meses") {
+      return d >= data6MesesAtras;
+    } else if (filtroPeriodo === "ano") {
+      return d.getFullYear() === anoAtual;
+    }
+    return true;
   });
 
-  const entradasMes = lancamentosMesAtual
+  // Entradas reais (exclui resgates)
+  const entradasPeriodo = lancamentosFiltrados
     .filter((l) => l.tipo === "entrada")
     .reduce((acc, l) => acc + parseFloat(l.valor), 0);
 
-  const gastosMes = lancamentosMesAtual
+  // Gastos reais (exclui depósitos em caixinha)
+  const gastosPeriodo = lancamentosFiltrados
     .filter((l) => l.tipo === "saida" || l.tipo === "credito")
     .reduce((acc, l) => acc + parseFloat(l.valor), 0);
 
-  const saldoMes = entradasMes - gastosMes;
-  const taxaPoupanca = entradasMes > 0 ? ((saldoMes / entradasMes) * 100).toFixed(0) : "0";
+  // Total Guardado no período
+  const investidoPeriodo = lancamentosFiltrados
+    .filter((l) => l.tipo === "deposito_caixinha")
+    .reduce((acc, l) => acc + parseFloat(l.valor), 0);
 
-  const gastosPorCategoria = lancamentosMesAtual
+  const saldoPeriodo = entradasPeriodo - gastosPeriodo;
+  const taxaPoupanca = entradasPeriodo > 0 ? ((saldoPeriodo / entradasPeriodo) * 100).toFixed(0) : "0";
+
+  // Gráfico de Barras: Gastos por Categoria
+  const gastosPorCategoria = lancamentosFiltrados
     .filter((l) => l.tipo === "saida" || l.tipo === "credito")
     .reduce((acc, l) => {
-      acc[l.categoria] = (acc[l.categoria] || 0) + parseFloat(l.valor);
+      const catId = l.categoria || 0; 
+      acc[catId] = (acc[catId] || 0) + parseFloat(l.valor);
       return acc;
     }, {} as Record<number, number>);
 
   const dadosCategorias = Object.keys(gastosPorCategoria)
-    .map((catId) => {
-      const cat = categorias.find((c) => c.id === parseInt(catId));
-      const valor = gastosPorCategoria[parseInt(catId)];
-      const porcentagem = gastosMes > 0 ? (valor / gastosMes) * 100 : 0;
+    .map((catIdStr) => {
+      const catId = parseInt(catIdStr);
+      const cat = categorias.find((c) => c.id === catId);
+      const valor = gastosPorCategoria[catId];
+      const porcentagem = gastosPeriodo > 0 ? (valor / gastosPeriodo) * 100 : 0;
       return {
         nome: cat ? cat.nome : "Outros",
         valor,
@@ -95,66 +124,100 @@ export default function RelatoriosPage() {
 
   const maxGastoCategoria = dadosCategorias.length > 0 ? dadosCategorias[0].valor : 1;
 
+  // Gráfico de Linha: Ajusta a quantidade de meses exibidos baseado no filtro
   const trendData = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    const m = d.getMonth() + 1;
-    const y = d.getFullYear();
-    const nomeMes = d.toLocaleString("pt-BR", { month: "short" }).toUpperCase();
+  
+  if (filtroPeriodo === "ano") {
+    // Mostra os 12 meses do ano atual
+    const mesesNomes = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+    for (let i = 1; i <= 12; i++) {
+      const lancMes = lancamentos.filter((l) => {
+        const lDate = new Date(l.data + "T00:00:00");
+        return lDate.getMonth() + 1 === i && lDate.getFullYear() === anoAtual;
+      });
+      const entradas = lancMes.filter((l) => l.tipo === "entrada").reduce((sum, l) => sum + parseFloat(l.valor), 0);
+      const gastos = lancMes.filter((l) => l.tipo === "saida" || l.tipo === "credito").reduce((sum, l) => sum + parseFloat(l.valor), 0);
+      trendData.push({ name: mesesNomes[i-1], Entradas: entradas, Gastos: gastos });
+    }
+  } else {
+    // Mostra apenas os últimos 6 meses
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      const nomeMes = d.toLocaleString("pt-BR", { month: "short" }).toUpperCase();
 
-    const lancMes = lancamentos.filter((l) => {
-      const lDate = new Date(l.data + "T00:00:00");
-      return lDate.getMonth() + 1 === m && lDate.getFullYear() === y;
-    });
+      const lancMes = lancamentos.filter((l) => {
+        const lDate = new Date(l.data + "T00:00:00");
+        return lDate.getMonth() + 1 === m && lDate.getFullYear() === y;
+      });
 
-    const entradas = lancMes.filter((l) => l.tipo === "entrada").reduce((sum, l) => sum + parseFloat(l.valor), 0);
-    const gastos = lancMes.filter((l) => l.tipo === "saida" || l.tipo === "credito").reduce((sum, l) => sum + parseFloat(l.valor), 0);
+      const entradas = lancMes.filter((l) => l.tipo === "entrada").reduce((sum, l) => sum + parseFloat(l.valor), 0);
+      const gastos = lancMes.filter((l) => l.tipo === "saida" || l.tipo === "credito").reduce((sum, l) => sum + parseFloat(l.valor), 0);
 
-    trendData.push({
-      name: nomeMes,
-      Entradas: entradas,
-      Gastos: gastos,
-    });
+      trendData.push({ name: nomeMes, Entradas: entradas, Gastos: gastos });
+    }
   }
+
+  // Textos dinâmicos para os cards baseados no filtro
+  const labelPeriodo = filtroPeriodo === "mes" ? "neste mês" : filtroPeriodo === "6meses" ? "em 6 meses" : "neste ano";
 
   return (
     <div className="max-w-6xl">
-      <div className="flex items-center gap-3 mb-8">
-        <ChartIcon className="text-blue-600" size={28} />
-        <h1 className="text-2xl font-bold">Relatório Mensal</h1>
+      {/* Cabeçalho com o novo Filtro */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <ChartIcon className="text-blue-600" size={28} />
+          <h1 className="text-2xl font-bold">Relatórios e Métricas</h1>
+        </div>
+        
+        <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+          <CalendarDays size={18} className="text-slate-400 ml-2" />
+          <select 
+            value={filtroPeriodo} 
+            onChange={(e) => setFiltroPeriodo(e.target.value as PeriodoFiltro)}
+            className="p-2 bg-transparent border-none outline-none text-sm font-semibold text-slate-700 cursor-pointer pr-4"
+          >
+            <option value="mes">Mês Atual</option>
+            <option value="6meses">Últimos 6 Meses</option>
+            <option value="ano">Ano Atual ({anoAtual})</option>
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Entradas</p>
-          <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(entradasMes)}</h3>
-          <p className="text-xs text-slate-400 mt-1">no mês atual</p>
+          <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(entradasPeriodo)}</h3>
+          <p className="text-xs text-slate-400 mt-1">{labelPeriodo}</p>
         </div>
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Gastos</p>
-          <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(gastosMes)}</h3>
-          <p className="text-xs text-slate-400 mt-1">débito + crédito</p>
+          <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(gastosPeriodo)}</h3>
+          <p className="text-xs text-slate-400 mt-1">débito + crédito ({labelPeriodo})</p>
         </div>
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Taxa Poupança</p>
           <h3 className="text-xl font-bold text-blue-600">{taxaPoupanca}%</h3>
-          <p className="text-xs text-slate-400 mt-1">do salário poupado</p>
+          <p className={`text-xs mt-1 font-medium ${investidoPeriodo > 0 ? 'text-purple-600' : 'text-slate-400'}`}>
+            {investidoPeriodo > 0 ? `Guardado: ${formatarMoeda(investidoPeriodo)}` : "da receita poupada"}
+          </p>
         </div>
-        <div className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 ${saldoMes >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
+        <div className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 ${saldoPeriodo >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Saldo Líquido</p>
-          <h3 className={`text-xl font-bold ${saldoMes >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {formatarMoeda(saldoMes)}
+          <h3 className={`text-xl font-bold ${saldoPeriodo >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {formatarMoeda(saldoPeriodo)}
           </h3>
-          <p className="text-xs text-slate-400 mt-1">resultado do mês</p>
+          <p className="text-xs text-slate-400 mt-1">resultado {labelPeriodo}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos Detalhados</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos por Categoria</h2>
           {dadosCategorias.length === 0 ? (
-            <p className="text-slate-500 text-sm">Sem gastos registrados neste mês.</p>
+            <p className="text-slate-500 text-sm">Sem gastos registrados {labelPeriodo}.</p>
           ) : (
             <div className="space-y-5">
               {dadosCategorias.map((item, index) => (
@@ -179,7 +242,7 @@ export default function RelatoriosPage() {
         </div>
 
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de 6 meses</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de Fluxo de Caixa</h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
