@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PieChart as ChartIcon, FileSpreadsheet, Download } from "lucide-react";
+import { PieChart as ChartIcon, FileSpreadsheet, Download, Calendar } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { fetchWithAuth } from "@/lib/apiClient";
 
@@ -23,6 +23,9 @@ export default function RelatoriosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // NOVO: Estado para controlar o filtro visual e de exportação
+  const [periodoSelecionado, setPeriodoSelecionado] = useState<"mes_atual" | "ultimos_6_meses" | "ano_atual" | "todos">("mes_atual");
 
   useEffect(() => {
     async function carregarDados() {
@@ -48,35 +51,27 @@ export default function RelatoriosPage() {
     carregarDados();
   }, []);
 
-  // --- NOVA FUNÇÃO DE EXPORTAÇÃO (Resolve o erro 401) ---
   const handleExportar = async () => {
     setIsExporting(true);
     try {
-      // Usamos o fetchWithAuth para garantir que os cookies sejam enviados
-      const res = await fetchWithAuth("/api/finance/exportar-excel/");
+      // Passa o período selecionado para o Django filtrar antes de gerar o Excel
+      const res = await fetchWithAuth(`/api/finance/exportar-excel/?periodo=${periodoSelecionado}`);
       
-      if (!res.ok) {
-        throw new Error("Falha na autenticação ou erro no servidor.");
-      }
+      if (!res.ok) throw new Error("Falha na autenticação ou erro no servidor.");
 
-      // Converte a resposta em um arquivo (Blob)
       const blob = await res.blob();
-      
-      // Cria um link temporário na memória e força o download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", "meus_lancamentos.xlsx"); // Nome do arquivo
+      link.setAttribute("download", `relatorio_${periodoSelecionado}.xlsx`);
       document.body.appendChild(link);
-      link.click(); // Simula o clique do usuário
-      
-      // Limpa a memória
+      link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
       
     } catch (error) {
       console.error("Erro ao exportar:", error);
-      alert("Não foi possível exportar a planilha. Verifique se você está logado.");
+      alert("Não foi possível exportar a planilha.");
     } finally {
       setIsExporting(false);
     }
@@ -88,27 +83,38 @@ export default function RelatoriosPage() {
 
   if (loading) return <div className="text-slate-500 animate-pulse p-8">Gerando relatórios...</div>;
 
+  // --- FILTRO VISUAL DOS DADOS ---
   const dataAtual = new Date();
   const mesAtual = dataAtual.getMonth() + 1;
   const anoAtual = dataAtual.getFullYear();
 
-  const lancamentosMesAtual = lancamentos.filter((l) => {
+  const seisMesesAtras = new Date();
+  seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
+
+  const lancamentosFiltrados = lancamentos.filter((l) => {
     const d = new Date(l.data + "T00:00:00");
-    return d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual;
+    if (periodoSelecionado === "mes_atual") {
+      return d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual;
+    } else if (periodoSelecionado === "ano_atual") {
+      return d.getFullYear() === anoAtual;
+    } else if (periodoSelecionado === "ultimos_6_meses") {
+      return d >= seisMesesAtras;
+    }
+    return true; // "todos"
   });
 
-  const entradasMes = lancamentosMesAtual
+  const entradasMes = lancamentosFiltrados
     .filter((l) => l.tipo === "entrada")
     .reduce((acc, l) => acc + parseFloat(l.valor), 0);
 
-  const gastosMes = lancamentosMesAtual
+  const gastosMes = lancamentosFiltrados
     .filter((l) => l.tipo === "saida" || l.tipo === "credito")
     .reduce((acc, l) => acc + parseFloat(l.valor), 0);
 
   const saldoMes = entradasMes - gastosMes;
   const taxaPoupanca = entradasMes > 0 ? ((saldoMes / entradasMes) * 100).toFixed(0) : "0";
 
-  const gastosPorCategoria = lancamentosMesAtual
+  const gastosPorCategoria = lancamentosFiltrados
     .filter((l) => l.tipo === "saida" || l.tipo === "credito")
     .reduce((acc, l) => {
       acc[l.categoria] = (acc[l.categoria] || 0) + parseFloat(l.valor);
@@ -158,24 +164,41 @@ export default function RelatoriosPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
           <ChartIcon className="text-blue-600" size={28} />
-          <h1 className="text-2xl font-bold text-slate-800">Relatório Mensal</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Relatórios</h1>
         </div>
 
-        <button 
-          onClick={handleExportar}
-          disabled={isExporting}
-          className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-sm disabled:opacity-50"
-        >
-          {isExporting ? <Download className="animate-bounce" size={18} /> : <FileSpreadsheet size={18} />}
-          {isExporting ? "Gerando Arquivo..." : "Exportar Planilha (Excel)"}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Menu Suspenso de Período */}
+          <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 shadow-sm">
+            <Calendar className="text-slate-400" size={18} />
+            <select
+              value={periodoSelecionado}
+              onChange={(e) => setPeriodoSelecionado(e.target.value as any)}
+              className="appearance-none bg-transparent py-2.5 pl-2 pr-8 text-sm font-medium text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="mes_atual">Mês Atual</option>
+              <option value="ultimos_6_meses">Últimos 6 Meses</option>
+              <option value="ano_atual">Ano Atual</option>
+              <option value="todos">Todo o Histórico</option>
+            </select>
+          </div>
+
+          <button 
+            onClick={handleExportar}
+            disabled={isExporting}
+            className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-sm disabled:opacity-50"
+          >
+            {isExporting ? <Download className="animate-bounce" size={18} /> : <FileSpreadsheet size={18} />}
+            {isExporting ? "Gerando Arquivo..." : "Exportar Excel"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Entradas</p>
           <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(entradasMes)}</h3>
-          <p className="text-xs text-slate-400 mt-1">no mês atual</p>
+          <p className="text-xs text-slate-400 mt-1">no período</p>
         </div>
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Gastos</p>
@@ -185,14 +208,14 @@ export default function RelatoriosPage() {
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Taxa Poupança</p>
           <h3 className="text-xl font-bold text-blue-600">{taxaPoupanca}%</h3>
-          <p className="text-xs text-slate-400 mt-1">do salário poupado</p>
+          <p className="text-xs text-slate-400 mt-1">do recebido</p>
         </div>
         <div className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 ${saldoMes >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Saldo Líquido</p>
           <h3 className={`text-xl font-bold ${saldoMes >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {formatarMoeda(saldoMes)}
           </h3>
-          <p className="text-xs text-slate-400 mt-1">resultado do mês</p>
+          <p className="text-xs text-slate-400 mt-1">resultado</p>
         </div>
       </div>
 
@@ -200,9 +223,9 @@ export default function RelatoriosPage() {
         <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos por Categoria</h2>
           {dadosCategorias.length === 0 ? (
-            <p className="text-slate-500 text-sm">Sem gastos registrados neste mês.</p>
+            <p className="text-slate-500 text-sm">Sem gastos no período.</p>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-5 h-64 overflow-y-auto pr-2">
               {dadosCategorias.map((item, index) => (
                 <div key={index}>
                   <div className="flex justify-between items-end mb-1">
@@ -225,7 +248,7 @@ export default function RelatoriosPage() {
         </div>
 
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de 6 meses</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de 6 meses (Visão Geral)</h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
