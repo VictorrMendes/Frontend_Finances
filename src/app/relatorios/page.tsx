@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PieChart as ChartIcon } from "lucide-react";
+import { PieChart as ChartIcon, FileSpreadsheet, Download } from "lucide-react"; // Importação de novos ícones
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { fetchWithAuth } from "@/lib/apiClient"; // <-- Nova importação
+import { fetchWithAuth } from "@/lib/apiClient";
 
 interface Lancamento {
   id: number;
@@ -22,6 +22,9 @@ export default function RelatoriosPage() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://victorrmendes.pythonanywhere.com";
 
   useEffect(() => {
     async function carregarDados() {
@@ -47,12 +50,23 @@ export default function RelatoriosPage() {
     carregarDados();
   }, []);
 
+  // FUNÇÃO PARA EXPORTAR EXCEL
+  const handleExportar = () => {
+    setIsExporting(true);
+    // Como usamos Cookies (HttpOnly), o window.open envia os cookies automaticamente para o Django
+    window.open(`${API_URL}/api/finance/exportar-excel/`, "_blank");
+    
+    // Pequeno feedback visual de carregamento
+    setTimeout(() => setIsExporting(false), 2000);
+  };
+
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
   };
 
-  if (loading) return <div className="text-slate-500 animate-pulse">Gerando relatórios...</div>;
+  if (loading) return <div className="text-slate-500 animate-pulse p-8">Gerando relatórios...</div>;
 
+  // Lógica de processamento de dados (Mantida igual ao seu código original)
   const dataAtual = new Date();
   const mesAtual = dataAtual.getMonth() + 1;
   const anoAtual = dataAtual.getFullYear();
@@ -119,12 +133,25 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <div className="max-w-6xl">
-      <div className="flex items-center gap-3 mb-8">
-        <ChartIcon className="text-blue-600" size={28} />
-        <h1 className="text-2xl font-bold">Relatório Mensal</h1>
+    <div className="max-w-6xl mx-auto">
+      {/* HEADER COM BOTÃO DE EXPORTAR */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <ChartIcon className="text-blue-600" size={28} />
+          <h1 className="text-2xl font-bold text-slate-800">Relatório Mensal</h1>
+        </div>
+
+        <button 
+          onClick={handleExportar}
+          disabled={isExporting}
+          className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-sm disabled:opacity-50"
+        >
+          {isExporting ? <Download className="animate-bounce" size={18} /> : <FileSpreadsheet size={18} />}
+          {isExporting ? "Gerando Arquivo..." : "Exportar Planilha (Excel)"}
+        </button>
       </div>
 
+      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Entradas</p>
@@ -151,8 +178,9 @@ export default function RelatoriosPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Gastos Detalhados */}
         <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos Detalhados</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos por Categoria</h2>
           {dadosCategorias.length === 0 ? (
             <p className="text-slate-500 text-sm">Sem gastos registrados neste mês.</p>
           ) : (
@@ -178,6 +206,7 @@ export default function RelatoriosPage() {
           )}
         </div>
 
+        {/* Tendência */}
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de 6 meses</h2>
           <div className="h-72 w-full">
@@ -194,7 +223,6 @@ export default function RelatoriosPage() {
             </ResponsiveContainer>
           </div>
         </div>
-
       </div>
     </div>
   );
