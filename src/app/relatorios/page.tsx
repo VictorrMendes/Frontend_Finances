@@ -24,8 +24,6 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://victorrmendes.pythonanywhere.com";
-
   useEffect(() => {
     async function carregarDados() {
       try {
@@ -50,14 +48,38 @@ export default function RelatoriosPage() {
     carregarDados();
   }, []);
 
-  // FUNÇÃO CORRIGIDA PARA EXPORTAR EXCEL
-  const handleExportar = () => {
+  // --- NOVA FUNÇÃO DE EXPORTAÇÃO (Resolve o erro 401) ---
+  const handleExportar = async () => {
     setIsExporting(true);
-    
-    // AQUI ESTÁ A CORREÇÃO: Removido o "/finance/" da URL
-    window.open(`${API_URL}/api/exportar-excel/`, "_blank");
-    
-    setTimeout(() => setIsExporting(false), 2000);
+    try {
+      // Usamos o fetchWithAuth para garantir que os cookies sejam enviados
+      const res = await fetchWithAuth("/api/finance/exportar-excel/");
+      
+      if (!res.ok) {
+        throw new Error("Falha na autenticação ou erro no servidor.");
+      }
+
+      // Converte a resposta em um arquivo (Blob)
+      const blob = await res.blob();
+      
+      // Cria um link temporário na memória e força o download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "meus_lancamentos.xlsx"); // Nome do arquivo
+      document.body.appendChild(link);
+      link.click(); // Simula o clique do usuário
+      
+      // Limpa a memória
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error("Erro ao exportar:", error);
+      alert("Não foi possível exportar a planilha. Verifique se você está logado.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const formatarMoeda = (valor: number) => {
