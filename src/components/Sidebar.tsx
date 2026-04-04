@@ -53,6 +53,10 @@ export function Sidebar() {
   const router = useRouter();
 
   useEffect(() => {
+    // SE FOR LOGIN OU RECUPERAÇÃO, NÃO BUSCA PERFIL (EVITA O LOOP)
+    const publicRoutes = ["/login", "/redefinir-senha", "/recuperar-senha"];
+    if (publicRoutes.includes(pathname)) return;
+
     async function carregarPerfil() {
       try {
         const res = await fetchWithAuth("/api/usuarios/perfil/");
@@ -61,7 +65,6 @@ export function Sidebar() {
           setUserData({
             username: data.username,
             email: data.email,
-            // Atualizado para usar foto_url
             foto: data.perfil?.foto_url 
           });
         }
@@ -81,7 +84,8 @@ export function Sidebar() {
     }
   };
 
-  if (pathname === "/login" || pathname === "/redefinir-senha" || pathname === "/recuperar-senha") return null;
+  // NÃO RENDERIZA NADA SE FOR LOGIN
+  if (pathname === "/login") return null;
 
   const UserFooter = () => (
     <div className="mt-auto pt-4 border-t border-slate-800 space-y-2">
@@ -122,22 +126,17 @@ export function Sidebar() {
     <>
       <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-50">
         <div className="text-lg font-bold text-blue-400">FinanceVM</div>
-        
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <button className="text-white p-2">
-              <Menu size={24} />
-            </button>
+            <button className="text-white p-2"><Menu size={24} /></button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 bg-slate-900 p-4 pt-6 border-slate-800 text-white flex flex-col h-full">
             <SheetHeader className="text-left mb-6">
               <SheetTitle className="text-blue-400 font-bold text-xl">FinanceVM</SheetTitle>
             </SheetHeader>
-            
             <nav className="flex flex-col gap-1 overflow-y-auto flex-1">
               <NavLinks closeMenu={() => setOpen(false)} />
             </nav>
-
             <UserFooter />
           </SheetContent>
         </Sheet>
@@ -148,11 +147,9 @@ export function Sidebar() {
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-base">F</div>
           FinanceVM
         </div>
-        
         <nav className="flex flex-col gap-1 overflow-y-auto flex-1">
           <NavLinks />
         </nav>
-
         <UserFooter />
       </aside>
     </>
