@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Receipt, Landmark, CreditCard, PieChart, Tags, Menu, UserCircle, LogOut } from "lucide-react";
+import { LayoutDashboard, Receipt, Landmark, CreditCard, PieChart, Tags, Menu, UserCircle, LogOut, PiggyBank } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -15,6 +15,7 @@ const NavLinks = ({ closeMenu }: { closeMenu?: () => void }) => {
     { href: "/categorias", label: "Categorias", icon: Tags },
     { href: "/bancos", label: "Bancos", icon: Landmark },
     { href: "/cartoes", label: "Cartões", icon: CreditCard },
+    { href: "/caixinhas", label: "Caixinhas", icon: PiggyBank }, // <-- NOVO BOTÃO DA CAIXINHA
     { href: "/relatorios", label: "Relatórios", icon: PieChart },
   ];
 
@@ -52,13 +53,16 @@ export function Sidebar() {
     setUsername(nomeSalvo);
   }, [pathname]);
 
-  // Função para deslogar atualizada para os novos tokens
+  // Função para deslogar atualizada para a nova segurança de Cookies
   const handleSair = () => {
     if (window.confirm("Tem certeza que deseja sair?")) {
-      // Remove os DOIS tokens da nova arquitetura de segurança
+      // Limpa as "bandeiras" do frontend
+      localStorage.removeItem("is_logged");
+      localStorage.removeItem("username");
+      
+      // Remove tokens antigos caso o usuário ainda tenha lixo no navegador
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
-      localStorage.removeItem("username");
       
       setOpen(false); // Fecha o menu mobile se estiver aberto
       router.push("/login");
@@ -104,7 +108,6 @@ export function Sidebar() {
               <Menu size={24} />
             </button>
           </SheetTrigger>
-          {/* Adicionamos flex e flex-col para o UserFooter ficar preso embaixo */}
           <SheetContent side="left" className="w-64 bg-slate-900 p-4 pt-6 border-slate-800 text-white flex flex-col h-full">
             <SheetHeader className="text-left mb-6">
               <SheetTitle className="text-blue-400 font-bold text-xl">Meu Dinheiro</SheetTitle>

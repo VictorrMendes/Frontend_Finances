@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { Landmark, Plus, Trash2 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/apiClient"; 
 
+// 1. ATUALIZAÇÃO DA INTERFACE: Adicionamos o saldo_atual
 interface Banco {
   id: number;
   nome: string;
   saldo_inicial: string;
+  saldo_atual?: string | number; 
 }
 
 export default function BancosPage() {
@@ -65,8 +67,9 @@ export default function BancosPage() {
     }
   };
 
-  const formatarMoeda = (valor: string) => {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(valor));
+  // 2. ATUALIZAÇÃO DO FORMATADOR: Agora aceita números e strings para evitar erros
+  const formatarMoeda = (valor: string | number) => {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(valor));
   };
 
   return (
@@ -113,10 +116,25 @@ export default function BancosPage() {
               <button onClick={() => handleDeletarBanco(banco.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500">
                 <Trash2 size={18} />
               </button>
+              
               <span className="text-sm text-slate-500 font-semibold">{banco.nome}</span>
-              <div className="text-2xl font-bold text-slate-800">{formatarMoeda(banco.saldo_inicial)}</div>
+              
+              {/* 3. ATUALIZAÇÃO DO CARD: Destaque para o Saldo Atual (Muda de cor se for negativo) */}
+              <div className="mt-1">
+                <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Saldo Atual</p>
+                <div className={`text-2xl font-bold ${Number(banco.saldo_atual) >= 0 ? 'text-slate-800' : 'text-red-600'}`}>
+                  {formatarMoeda(banco.saldo_atual || 0)}
+                </div>
+              </div>
+
+              {/* Saldo inicial fica menorzinho embaixo como referência */}
+              <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-400">Saldo Inicial:</span>
+                <span className="text-sm font-medium text-slate-500">{formatarMoeda(banco.saldo_inicial)}</span>
+              </div>
             </div>
           ))}
+          {bancos.length === 0 && <p className="text-slate-500 col-span-full">Nenhum banco cadastrado ainda.</p>}
         </div>
       )}
     </div>
