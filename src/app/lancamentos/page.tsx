@@ -12,9 +12,12 @@ interface Banco { id: number; nome: string; }
 interface Cartao { id: number; nome: string; }
 interface Caixinha { id: number; nome: string; }
 
+// Criamos um Tipo específico para resolver o erro do "any"
+type TipoLancamento = "entrada" | "saida" | "credito" | "deposito_caixinha" | "resgate_caixinha";
+
 interface Lancamento {
   id: number;
-  tipo: "entrada" | "saida" | "credito" | "deposito_caixinha" | "resgate_caixinha";
+  tipo: TipoLancamento;
   descricao: string;
   valor: string;
   data: string;
@@ -46,7 +49,7 @@ export default function LancamentosPage() {
 
   // Estados do Formulário
   const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [tipo, setTipo] = useState<"entrada" | "saida" | "credito" | "deposito_caixinha" | "resgate_caixinha">("saida");
+  const [tipo, setTipo] = useState<TipoLancamento>("saida");
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
@@ -56,6 +59,13 @@ export default function LancamentosPage() {
   const [caixinhaId, setCaixinhaId] = useState("");
   const [parcelas, setParcelas] = useState("1");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --- FUNÇÕES AUXILIARES MOVIDAS PARA O TOPO PARA EVITAR ERRO DE REFERÊNCIA ---
+  const getNomeCategoria = (id: number) => categorias.find((c) => c.id === id)?.nome || "Sem categoria";
+
+  const formatarMoeda = (valor: string | number) => {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(valor));
+  };
 
   useEffect(() => {
     carregarTudo();
@@ -104,14 +114,14 @@ export default function LancamentosPage() {
     const payload = {
       tipo,
       descricao,
-      valor: parseFloat(valor.replace(",", ".")), // Garante que o valor vá correto
+      valor: parseFloat(valor.replace(",", ".")), 
       data,
       categoria: (tipo === "deposito_caixinha" || tipo === "resgate_caixinha") ? null : (categoriaId ? parseInt(categoriaId) : null),
       banco: (tipo === "saida" || tipo === "entrada" || tipo === "resgate_caixinha") && bancoId ? parseInt(bancoId) : null,
       cartao: tipo === "credito" && cartaoId ? parseInt(cartaoId) : null,
       caixinha: (tipo === "deposito_caixinha" || tipo === "resgate_caixinha") && caixinhaId ? parseInt(caixinhaId) : null,
       parcelas: tipo === "credito" ? parseInt(parcelas) : 1,
-      parcela_atual: editandoId ? undefined : 1, // Na edição, não resetamos a parcela atual
+      parcela_atual: editandoId ? undefined : 1,
     };
 
     try {
@@ -146,7 +156,6 @@ export default function LancamentosPage() {
     setCaixinhaId(l.caixinha?.toString() || "");
     setParcelas(l.parcelas.toString());
     
-    // Rola a tela suavemente para o topo onde está o formulário
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -163,7 +172,6 @@ export default function LancamentosPage() {
     }
   };
 
-  // --- Funções de Navegação de Data ---
   const irParaMesAnterior = () => {
     if (mesAtual === 1) { setMesAtual(12); setAnoAtual(anoAtual - 1); } 
     else { setMesAtual(mesAtual - 1); }
@@ -174,25 +182,17 @@ export default function LancamentosPage() {
     else { setMesAtual(mesAtual + 1); }
   };
 
-  // --- Filtros ---
+  // --- FILTROS (Agora a função getNomeCategoria já existe aqui) ---
   const lancamentosFiltrados = lancamentos.filter((l) => {
-    // Filtro de Mês e Ano
     const d = new Date(l.data + "T00:00:00");
     const matchMesAno = d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual;
     
-    // Filtro de Busca (Texto)
     const termoBusca = busca.toLowerCase();
     const matchBusca = l.descricao.toLowerCase().includes(termoBusca) || 
                        (getNomeCategoria(l.categoria).toLowerCase().includes(termoBusca));
 
     return matchMesAno && matchBusca;
   });
-
-  const formatarMoeda = (valor: string | number) => {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(valor));
-  };
-
-  const getNomeCategoria = (id: number) => categorias.find((c) => c.id === id)?.nome || "Sem categoria";
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
@@ -203,7 +203,7 @@ export default function LancamentosPage() {
         <h1 className="text-2xl font-bold text-slate-800">Lançamentos</h1>
       </div>
 
-      {/* PAINEL DO FORMULÁRIO (Novo ou Edição) */}
+      {/* PAINEL DO FORMULÁRIO */}
       <div className={`p-6 rounded-xl border shadow-sm mb-8 transition-colors ${editandoId ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
         <div className="flex justify-between items-center mb-4">
           <h2 className={`text-lg font-semibold flex items-center gap-2 ${editandoId ? 'text-amber-800' : 'text-slate-800'}`}>
@@ -223,7 +223,7 @@ export default function LancamentosPage() {
               <select
                 className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium bg-white"
                 value={tipo}
-                onChange={(e) => setTipo(e.target.value as any)}
+                onChange={(e) => setTipo(e.target.value as TipoLancamento)}
               >
                 <option value="saida">Saída (Débito)</option>
                 <option value="entrada">Entrada (Receita)</option>
