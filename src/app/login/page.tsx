@@ -1,4 +1,3 @@
-quero esse codigo responsivo:
 "use client";
 
 import { useState } from "react";
