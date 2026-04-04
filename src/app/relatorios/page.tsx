@@ -29,7 +29,6 @@ export default function RelatoriosPage() {
   const [filtroPeriodo, setFiltroPeriodo] = useState<PeriodoFiltro>("6meses");
   const [isExporting, setIsExporting] = useState(false);
   
-  // Referência para capturar o conteúdo do relatório
   const relatorioRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,7 +58,6 @@ export default function RelatoriosPage() {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
   };
 
-  // Função para gerar o PDF
   const exportarPDF = async () => {
     if (!relatorioRef.current) return;
     setIsExporting(true);
@@ -67,11 +65,11 @@ export default function RelatoriosPage() {
     try {
       const elemento = relatorioRef.current;
       
-      // html2canvas tira uma "foto" da div
       const canvas = await html2canvas(elemento, {
-        scale: 2, // Melhora a resolução do PDF
+        scale: 2,
         useCORS: true,
-        backgroundColor: "#f8fafc" // Garante o fundo slate-50 no PDF
+        backgroundColor: "#f8fafc", // Hexadecimal fix para oklch
+        logging: false,
       });
 
       const imgData = canvas.toDataURL("image/png");
@@ -80,11 +78,11 @@ export default function RelatoriosPage() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      // Adiciona a imagem capturada ao PDF
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
       pdf.save(`relatorio-financeiro-${filtroPeriodo}.pdf`);
     } catch (error) {
       console.error("Erro ao exportar PDF:", error);
+      alert("Houve um erro ao gerar o PDF. Verifique o console.");
     } finally {
       setIsExporting(false);
     }
@@ -95,7 +93,6 @@ export default function RelatoriosPage() {
   const dataAtual = new Date();
   const mesAtual = dataAtual.getMonth() + 1;
   const anoAtual = dataAtual.getFullYear();
-
   const data6MesesAtras = new Date();
   data6MesesAtras.setMonth(dataAtual.getMonth() - 5);
   data6MesesAtras.setDate(1);
@@ -175,7 +172,6 @@ export default function RelatoriosPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Botão de Exportar */}
           <button
             onClick={exportarPDF}
             disabled={isExporting}
@@ -200,61 +196,71 @@ export default function RelatoriosPage() {
         </div>
       </div>
 
-      {/* Referência do Relatório (Conteúdo que entrará no PDF) */}
-      <div ref={relatorioRef} className="bg-slate-50 rounded-2xl p-4 md:p-6">
+      {/* ÁREA DE CAPTURA - AJUSTE DE COR INLINE PARA EVITAR ERRO OKLCH */}
+      <div 
+        ref={relatorioRef} 
+        className="bg-slate-50 rounded-2xl p-4 md:p-6"
+        style={{ backgroundColor: '#f8fafc' }} 
+      >
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-slate-800">Resumo Financeiro - {filtroPeriodo.toUpperCase()}</h2>
-          <p className="text-sm text-slate-500">Documento gerado em {new Date().toLocaleDateString('pt-BR')}</p>
+          <h2 className="text-xl font-bold" style={{ color: '#1e293b' }}>
+            Resumo Financeiro - {filtroPeriodo.toUpperCase()}
+          </h2>
+          <p className="text-sm" style={{ color: '#64748b' }}>
+            Documento gerado em {new Date().toLocaleDateString('pt-BR')}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Entradas</p>
-            <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(entradasPeriodo)}</h3>
-            <p className="text-xs text-slate-400 mt-1">{labelPeriodo}</p>
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500" style={{ backgroundColor: '#ffffff' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#64748b' }}>Total Entradas</p>
+            <h3 className="text-xl font-bold" style={{ color: '#1e293b' }}>{formatarMoeda(entradasPeriodo)}</h3>
+            <p className="text-xs" style={{ color: '#94a3b8' }}>{labelPeriodo}</p>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Gastos</p>
-            <h3 className="text-xl font-bold text-slate-800">{formatarMoeda(gastosPeriodo)}</h3>
-            <p className="text-xs text-slate-400 mt-1">débito + crédito ({labelPeriodo})</p>
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500" style={{ backgroundColor: '#ffffff' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#64748b' }}>Total Gastos</p>
+            <h3 className="text-xl font-bold" style={{ color: '#1e293b' }}>{formatarMoeda(gastosPeriodo)}</h3>
+            <p className="text-xs" style={{ color: '#94a3b8' }}>débito + crédito ({labelPeriodo})</p>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Taxa Poupança</p>
-            <h3 className="text-xl font-bold text-blue-600">{taxaPoupanca}%</h3>
-            <p className={`text-xs mt-1 font-medium ${investidoPeriodo > 0 ? 'text-purple-600' : 'text-slate-400'}`}>
-              {investidoPeriodo > 0 ? `Guardado: ${formatarMoeda(investidoPeriodo)}` : "da receita poupada"}
-            </p>
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500" style={{ backgroundColor: '#ffffff' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#64748b' }}>Taxa Poupança</p>
+            <h3 className="text-xl font-bold" style={{ color: '#2563eb' }}>{taxaPoupanca}%</h3>
+            <p className="text-xs" style={{ color: '#94a3b8' }}>da receita poupada</p>
           </div>
-          <div className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 ${saldoPeriodo >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Saldo Líquido</p>
-            <h3 className={`text-xl font-bold ${saldoPeriodo >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4" 
+               style={{ backgroundColor: '#ffffff', borderLeftColor: saldoPeriodo >= 0 ? '#10b981' : '#ef4444' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#64748b' }}>Saldo Líquido</p>
+            <h3 className="text-xl font-bold" style={{ color: saldoPeriodo >= 0 ? '#10b981' : '#ef4444' }}>
               {formatarMoeda(saldoPeriodo)}
             </h3>
-            <p className="text-xs text-slate-400 mt-1">resultado {labelPeriodo}</p>
+            <p className="text-xs" style={{ color: '#94a3b8' }}>resultado {labelPeriodo}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos por Categoria</h2>
+          <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm" style={{ backgroundColor: '#ffffff' }}>
+            <h2 className="text-lg font-semibold mb-6" style={{ color: '#1e293b' }}>Gastos por Categoria</h2>
             {dadosCategorias.length === 0 ? (
-              <p className="text-slate-500 text-sm">Sem gastos registrados.</p>
+              <p style={{ color: '#64748b', fontSize: '14px' }}>Sem gastos registrados.</p>
             ) : (
               <div className="space-y-5">
                 {dadosCategorias.map((item, index) => (
                   <div key={index}>
                     <div className="flex justify-between items-end mb-1">
-                      <span className="text-sm font-medium text-slate-700">{item.nome}</span>
-                      <span className="text-sm font-bold text-slate-800">{formatarMoeda(item.valor)}</span>
+                      <span className="text-sm font-medium" style={{ color: '#334155' }}>{item.nome}</span>
+                      <span className="text-sm font-bold" style={{ color: '#1e293b' }}>{formatarMoeda(item.valor)}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#f1f5f9' }}>
                         <div 
-                          className="h-full bg-blue-500 rounded-full" 
-                          style={{ width: `${(item.valor / maxGastoCategoria) * 100}%` }}
+                          className="h-full rounded-full" 
+                          style={{ 
+                            width: `${(item.valor / maxGastoCategoria) * 100}%`,
+                            backgroundColor: '#3b82f6' 
+                          }}
                         ></div>
                       </div>
-                      <span className="text-xs text-slate-400 w-8 text-right">{item.porcentagem.toFixed(0)}%</span>
+                      <span className="text-xs w-8 text-right" style={{ color: '#94a3b8' }}>{item.porcentagem.toFixed(0)}%</span>
                     </div>
                   </div>
                 ))}
@@ -262,18 +268,18 @@ export default function RelatoriosPage() {
             )}
           </div>
 
-          <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de Fluxo de Caixa</h2>
+          <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm" style={{ backgroundColor: '#ffffff' }}>
+            <h2 className="text-lg font-semibold mb-6" style={{ color: '#1e293b' }}>Tendência de Fluxo</h2>
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `R$ ${val}`} />
-                  <Tooltip formatter={(value) => formatarMoeda(Number(value))} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
+                  <Tooltip formatter={(value) => formatarMoeda(Number(value))} />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                  <Line type="monotone" dataKey="Entradas" stroke="#10b981" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="Gastos" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="Entradas" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="Gastos" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
