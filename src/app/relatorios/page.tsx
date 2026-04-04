@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PieChart as ChartIcon, FileSpreadsheet, Download } from "lucide-react"; // Importação de novos ícones
+import { PieChart as ChartIcon, FileSpreadsheet, Download } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { fetchWithAuth } from "@/lib/apiClient";
 
@@ -50,13 +50,13 @@ export default function RelatoriosPage() {
     carregarDados();
   }, []);
 
-  // FUNÇÃO PARA EXPORTAR EXCEL
+  // FUNÇÃO CORRIGIDA PARA EXPORTAR EXCEL
   const handleExportar = () => {
     setIsExporting(true);
-    // Como usamos Cookies (HttpOnly), o window.open envia os cookies automaticamente para o Django
-    window.open(`${API_URL}/api/finance/exportar-excel/`, "_blank");
     
-    // Pequeno feedback visual de carregamento
+    // AQUI ESTÁ A CORREÇÃO: Removido o "/finance/" da URL
+    window.open(`${API_URL}/api/exportar-excel/`, "_blank");
+    
     setTimeout(() => setIsExporting(false), 2000);
   };
 
@@ -66,7 +66,6 @@ export default function RelatoriosPage() {
 
   if (loading) return <div className="text-slate-500 animate-pulse p-8">Gerando relatórios...</div>;
 
-  // Lógica de processamento de dados (Mantida igual ao seu código original)
   const dataAtual = new Date();
   const mesAtual = dataAtual.getMonth() + 1;
   const anoAtual = dataAtual.getFullYear();
@@ -134,7 +133,6 @@ export default function RelatoriosPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* HEADER COM BOTÃO DE EXPORTAR */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
           <ChartIcon className="text-blue-600" size={28} />
@@ -151,7 +149,6 @@ export default function RelatoriosPage() {
         </button>
       </div>
 
-      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Entradas</p>
@@ -178,7 +175,6 @@ export default function RelatoriosPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Gastos Detalhados */}
         <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-6">Gastos por Categoria</h2>
           {dadosCategorias.length === 0 ? (
@@ -206,7 +202,6 @@ export default function RelatoriosPage() {
           )}
         </div>
 
-        {/* Tendência */}
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-800 mb-6">Tendência de 6 meses</h2>
           <div className="h-72 w-full">
