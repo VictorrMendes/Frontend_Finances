@@ -24,6 +24,8 @@ export default function PerfilPage() {
         setUserData(data);
         if (data.perfil?.foto) setPreview(data.perfil.foto);
       }
+    } catch (error) {
+      console.error("Erro ao carregar perfil:", error);
     } finally {
       setLoading(false);
     }
@@ -44,13 +46,30 @@ export default function PerfilPage() {
         body: formData,
         credentials: "include",
       });
-      if (res.ok) alert("Perfil atualizado com sucesso!");
+      if (res.ok) {
+        alert("Perfil atualizado com sucesso!");
+        // Força reload para atualizar Sidebar se necessário
+        window.location.reload(); 
+      }
+    } catch (error) {
+       console.error("Erro ao salvar:", error);
+       alert("Erro ao salvar perfil.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Carregando...</div>;
+  if (loading) return <div className="p-8 text-center text-slate-500">Carregando perfil...</div>;
+
+  // Proteção contra a "Tela Branca" se a API falhar
+  if (!userData) {
+    return (
+      <div className="p-8 text-center mt-10">
+        <h2 className="text-xl text-red-500 font-bold mb-2">Ops! Algo deu errado.</h2>
+        <p className="text-slate-600">Não foi possível carregar seus dados. Tente fazer login novamente.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-slate-100 mt-10">
@@ -88,13 +107,13 @@ export default function PerfilPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Usuário</label>
-            <input type="text" disabled value={userData.username} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-500" />
+            <input type="text" disabled value={userData.username || ""} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
             <input 
               type="email" 
-              value={userData.email} 
+              value={userData.email || ""} 
               onChange={(e) => setUserData({...userData, email: e.target.value})}
               className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
             />
