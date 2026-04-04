@@ -2,26 +2,21 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { 
-  LayoutDashboard, Receipt, Landmark, CreditCard, 
-  PieChart, Tags, Menu, UserCircle, LogOut, PiggyBank, CalendarClock, Settings, User 
-} from "lucide-react";
+import { LayoutDashboard, Receipt, Landmark, CreditCard, PieChart, Tags, Menu, UserCircle, LogOut, PiggyBank } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { fetchWithAuth } from "@/lib/apiClient";
 
+// Função auxiliar para os links (evita repetição de código)
 const NavLinks = ({ closeMenu }: { closeMenu?: () => void }) => {
   const pathname = usePathname();
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/lancamentos", label: "Lançamentos", icon: Receipt },
-    { href: "/contas-pagar", label: "Contas a Pagar", icon: CalendarClock },
-    { href: "/caixinhas", label: "Caixinhas", icon: PiggyBank }, 
-    { href: "/cartoes", label: "Cartões", icon: CreditCard },
-    { href: "/bancos", label: "Bancos", icon: Landmark },
     { href: "/categorias", label: "Categorias", icon: Tags },
+    { href: "/bancos", label: "Bancos", icon: Landmark },
+    { href: "/cartoes", label: "Cartões", icon: CreditCard },
+    { href: "/caixinhas", label: "Caixinhas", icon: PiggyBank }, // <-- NOVO BOTÃO DA CAIXINHA
     { href: "/relatorios", label: "Relatórios", icon: PieChart },
-    { href: "/perfil", label: "Meu Perfil", icon: User }, // Link para a página de edição
   ];
 
   return (
@@ -30,7 +25,7 @@ const NavLinks = ({ closeMenu }: { closeMenu?: () => void }) => {
         <Link
           key={link.href}
           href={link.href}
-          onClick={closeMenu}
+          onClick={closeMenu} // Fecha o menu no mobile se clicar
           className={`flex items-center gap-3 px-4 py-3 rounded-lg transition text-sm font-medium ${
             pathname === link.href
               ? "bg-slate-800 text-blue-300 font-semibold"
@@ -47,85 +42,66 @@ const NavLinks = ({ closeMenu }: { closeMenu?: () => void }) => {
 
 export function Sidebar() {
   const [open, setOpen] = useState(false);
-  const [userData, setUserData] = useState<{username: string, email: string, foto?: string} | null>(null);
+  const [username, setUsername] = useState<string | null>("");
   
   const pathname = usePathname();
   const router = useRouter();
 
-  // Busca os dados do perfil (incluindo a foto) sempre que o componente monta
+  // Busca o nome do usuário salvo no computador assim que o menu carrega ou a rota muda
   useEffect(() => {
-    async function carregarPerfil() {
-      try {
-        const res = await fetchWithAuth("/api/usuarios/perfil/");
-        if (res.ok) {
-          const data = await res.json();
-          setUserData({
-            username: data.username,
-            email: data.email,
-            foto: data.perfil?.foto // Pega a URL da foto vinda do Django
-          });
-        }
-      } catch (error) {
-        console.error("Erro ao carregar perfil no sidebar:", error);
-      }
-    }
-    carregarPerfil();
-  }, [pathname]); // Recarrega se mudar de página (ajuda a atualizar a foto após salvar)
+    const nomeSalvo = localStorage.getItem("username");
+    setUsername(nomeSalvo);
+  }, [pathname]);
 
+  // Função para deslogar atualizada para a nova segurança de Cookies
   const handleSair = () => {
     if (window.confirm("Tem certeza que deseja sair?")) {
+      // Limpa as "bandeiras" do frontend
       localStorage.removeItem("is_logged");
       localStorage.removeItem("username");
-      setOpen(false);
+      
+      // Remove tokens antigos caso o usuário ainda tenha lixo no navegador
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      
+      setOpen(false); // Fecha o menu mobile se estiver aberto
       router.push("/login");
     }
   };
 
+  // Se estiver na tela de login, esconde a barra lateral completamente
   if (pathname === "/login") return null;
 
-  // Componente do Rodapé do Usuário com Foto e Link de Edição
+  // Componente interno para o Rodapé do Usuário (reutilizado no mobile e desktop)
   const UserFooter = () => (
-    <div className="mt-auto pt-4 border-t border-slate-800 space-y-2">
-      <Link 
-        href="/perfil" 
-        onClick={() => setOpen(false)}
-        className="group flex items-center gap-3 px-3 py-3 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-blue-500/50 transition-all"
-      >
-        {/* Avatar: Se tiver foto, mostra img. Se não, mostra ícone */}
-        <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden shrink-0 border border-slate-600 group-hover:border-blue-400 transition-colors flex items-center justify-center">
-          {userData?.foto ? (
-            <img src={userData.foto} alt="Avatar" className="w-full h-full object-cover" />
-          ) : (
-            <UserCircle size={24} className="text-slate-400" />
-          )}
-        </div>
-        
-        <div className="flex flex-col truncate flex-1">
+    <div className="mt-auto pt-4 border-t border-slate-800">
+      <div className="flex items-center gap-3 px-3 py-3 mb-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+        <UserCircle size={24} className="text-blue-400 shrink-0" />
+        <div className="flex flex-col truncate">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Logado como</span>
           <span className="text-sm font-semibold text-white truncate capitalize">
-            {userData?.username || "Usuário"}
-          </span>
-          <span className="text-[10px] text-blue-400 font-medium flex items-center gap-1 group-hover:text-blue-300 transition-colors">
-            <Settings size={10} /> Editar Perfil
+            {username || "Usuário"}
           </span>
         </div>
-      </Link>
+      </div>
       
       <button 
         onClick={handleSair}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors group"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg transition"
       >
-        <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
-        Sair
+        <LogOut size={18} />
+        Sair da Conta
       </button>
     </div>
   );
 
   return (
     <>
-      {/* 📱 VIEW MOBILE */}
+      {/* 📱 VIEW MOBILE (Aparece em telas pequenas) */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-50">
-        <div className="text-lg font-bold text-blue-400">FinanceVM</div>
+        <div className="text-lg font-bold text-blue-400">Meu Dinheiro</div>
         
+        {/* Usamos o Sheet do Shadcn para o menu hambúrguer */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button className="text-white p-2">
@@ -134,10 +110,10 @@ export function Sidebar() {
           </SheetTrigger>
           <SheetContent side="left" className="w-64 bg-slate-900 p-4 pt-6 border-slate-800 text-white flex flex-col h-full">
             <SheetHeader className="text-left mb-6">
-              <SheetTitle className="text-blue-400 font-bold text-xl">FinanceVM</SheetTitle>
+              <SheetTitle className="text-blue-400 font-bold text-xl">Meu Dinheiro</SheetTitle>
             </SheetHeader>
             
-            <nav className="flex flex-col gap-1 overflow-y-auto flex-1">
+            <nav className="flex flex-col gap-2">
               <NavLinks closeMenu={() => setOpen(false)} />
             </nav>
 
@@ -146,14 +122,13 @@ export function Sidebar() {
         </Sheet>
       </header>
 
-      {/* 💻 VIEW DESKTOP */}
-      <aside className="hidden lg:flex w-64 bg-slate-900 text-white min-h-screen p-4 flex-col fixed left-0 top-0 bottom-0 border-r border-slate-800 shadow-2xl">
-        <div className="text-xl font-bold mb-8 px-4 text-blue-400 mt-4 flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-base">F</div>
-          FinanceVM
+      {/* 💻 VIEW DESKTOP (Barra lateral fixa, aparece em telas grandes) */}
+      <aside className="hidden lg:flex w-64 bg-slate-900 text-white min-h-screen p-4 flex-col gap-2 fixed left-0 top-0 bottom-0">
+        <div className="text-xl font-bold mb-8 px-4 text-blue-400 mt-4">
+          Meu Dinheiro
         </div>
         
-        <nav className="flex flex-col gap-1 overflow-y-auto flex-1">
+        <nav className="flex flex-col gap-2">
           <NavLinks />
         </nav>
 
