@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Receipt, Landmark, CreditCard, PieChart, Tags, Menu, UserCircle, LogOut, PiggyBank } from "lucide-react";
+import { 
+  LayoutDashboard, Receipt, Landmark, CreditCard, 
+  PieChart, Tags, Menu, UserCircle, LogOut, PiggyBank, CalendarClock 
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -12,10 +15,11 @@ const NavLinks = ({ closeMenu }: { closeMenu?: () => void }) => {
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/lancamentos", label: "Lançamentos", icon: Receipt },
-    { href: "/categorias", label: "Categorias", icon: Tags },
-    { href: "/bancos", label: "Bancos", icon: Landmark },
+    { href: "/contas-pagar", label: "Contas a Pagar", icon: CalendarClock }, // <-- NOVO BOTÃO
+    { href: "/caixinhas", label: "Caixinhas", icon: PiggyBank }, 
     { href: "/cartoes", label: "Cartões", icon: CreditCard },
-    { href: "/caixinhas", label: "Caixinhas", icon: PiggyBank }, // <-- NOVO BOTÃO DA CAIXINHA
+    { href: "/bancos", label: "Bancos", icon: Landmark },
+    { href: "/categorias", label: "Categorias", icon: Tags },
     { href: "/relatorios", label: "Relatórios", icon: PieChart },
   ];
 
@@ -113,7 +117,7 @@ export function Sidebar() {
               <SheetTitle className="text-blue-400 font-bold text-xl">Meu Dinheiro</SheetTitle>
             </SheetHeader>
             
-            <nav className="flex flex-col gap-2">
+            <nav className="flex flex-col gap-2 overflow-y-auto">
               <NavLinks closeMenu={() => setOpen(false)} />
             </nav>
 
@@ -128,7 +132,7 @@ export function Sidebar() {
           Meu Dinheiro
         </div>
         
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-2 overflow-y-auto">
           <NavLinks />
         </nav>
 
