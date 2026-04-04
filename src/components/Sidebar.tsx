@@ -94,7 +94,11 @@ export function Sidebar() {
   const UserFooter = () => (
     <div className="mt-auto p-4 space-y-4">
       <div className="px-4 py-3 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 flex items-center justify-between">
-        
+        <div className="flex items-center gap-2 text-emerald-500">
+           <Wallet size={14} />
+           <span className="text-[10px] font-black uppercase tracking-widest">Sessão Segura</span>
+        </div>
+        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
       </div>
 
       <Link 

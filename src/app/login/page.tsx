@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, ArrowLeft, Loader2, Landmark, ArrowUpRight, TrendingUp, Wallet, CircleDollarSign } from "lucide-react";
+import { User, Mail, ArrowLeft, Loader2, Wallet, TrendingUp, Landmark, ArrowUpRight, CircleDollarSign } from "lucide-react";
 
 type ViewState = "login" | "register" | "forgot_password";
 
 export default function LoginPage() {
+
   const [view, setView] = useState<ViewState>("login");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -16,14 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
-  const API_URL = "https://victorrmendes.pythonanywhere.com";
-
-  // Limpa possíveis travas de Service Worker ou sessões antigas ao abrir
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-    }
-  }, []);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://victorrmendes.pythonanywhere.com";
 
   const changeView = (newView: ViewState) => {
     setView(newView);
@@ -38,121 +32,158 @@ export default function LoginPage() {
 
     try {
       if (view === "login") {
-        const res = await fetch(`${API_URL}/api/token/`, {
+        const resposta = await fetch(`${API_URL}/api/token/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
           credentials: "include",
         });
 
-        if (res.ok) {
+        if (resposta.ok) {
           localStorage.setItem("username", username);
           localStorage.setItem("is_logged", "true");
-          router.push("/"); 
+          router.push("/");
         } else {
-          setErro("Credenciais inválidas ou acesso negado.");
+          setErro("Credenciais inválidas. Tente novamente.");
         }
-      } else if (view === "register") {
-        const res = await fetch(`${API_URL}/api/usuarios/registrar/`, {
+      } 
+      else if (view === "register") {
+        const resposta = await fetch(`${API_URL}/api/usuarios/registrar/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, email, password }),
         });
-        if (res.ok) {
-          setSucesso("Conta criada! Realize o acesso.");
+
+        if (resposta.ok) {
+          setSucesso("Conta bancária virtual criada! Acesse agora.");
           changeView("login");
         } else {
-          setErro("Falha no registro. Verifique os dados.");
+          const dadosErro = await resposta.json();
+          setErro(dadosErro.username ? dadosErro.username[0] : "Erro ao processar registro.");
         }
-      } else if (view === "forgot_password") {
-        const res = await fetch(`${API_URL}/api/usuarios/recuperar-senha/`, {
+      }
+      else if (view === "forgot_password") {
+        const resposta = await fetch(`${API_URL}/api/usuarios/recuperar-senha/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
         });
-        if (res.ok) setSucesso("Instruções enviadas ao e-mail.");
-        else setErro("E-mail não localizado.");
+
+        if (resposta.ok) {
+          setSucesso("Verifique sua caixa de entrada para redefinir.");
+          setTimeout(() => changeView("login"), 4000);
+        } else {
+          setErro("E-mail não encontrado em nossa base.");
+        }
       }
-    } catch (err) {
-      setErro("Erro de conexão com o servidor.");
+    } catch (error) {
+      setErro("Sem conexão com o servidor financeiro.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#020617] overflow-y-auto font-sans p-4">
-      {/* GLOW BACKGROUND */}
-      <div className="fixed top-[-10%] left-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="fixed bottom-[-10%] right-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+    <div className="fixed inset-0 z-[999] w-full h-full flex items-center justify-center bg-[#020617] overflow-y-auto font-sans px-3 sm:px-4">
 
-      <div className="relative z-10 w-full max-w-[460px] py-8">
-        <div className="bg-slate-900/80 backdrop-blur-3xl border border-white/5 p-6 sm:p-10 rounded-[2.5rem] shadow-2xl">
-          
-          <div className="flex flex-col items-center mb-8 text-center">
-            <div className="w-14 h-14 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-2xl flex items-center justify-center mb-4 rotate-3 shadow-lg shadow-emerald-500/20">
+      {/* BACKGROUND */}
+      <div className="absolute top-[-20%] left-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-emerald-500/10 rounded-full blur-[120px]"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-blue-600/10 rounded-full blur-[120px]"></div>
+
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(#fff 1px, transparent 1px)`,
+          backgroundSize: '30px 30px'
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-md sm:max-w-lg">
+
+        {/* CARD */}
+        <div className="bg-slate-900/80 backdrop-blur-3xl border border-white/5 p-5 sm:p-8 lg:p-12 rounded-3xl shadow-2xl">
+
+          {/* HEADER */}
+          <div className="flex flex-col items-center mb-8 sm:mb-10 text-center">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-2xl flex items-center justify-center mb-4">
               <Landmark className="text-slate-900" size={28} />
             </div>
-            <h1 className="text-2xl font-black text-white italic tracking-tighter">FINANCE<span className="text-emerald-400">VM</span></h1>
-            <p className="text-slate-500 text-[10px] uppercase tracking-[0.3em] mt-1 font-bold">Private Banking Digital</p>
+
+            <h1 className="text-2xl sm:text-3xl font-black text-white">
+              Finance<span className="text-emerald-400">VM</span>
+            </h1>
+
+            <p className="text-slate-500 text-[10px] sm:text-xs uppercase tracking-widest mt-2">
+              Gestão de Ativos Inteligente
+            </p>
           </div>
 
-          {erro && <div className="bg-red-500/10 border-l-4 border-red-500 text-red-400 p-3 rounded-r-xl text-[11px] font-bold mb-6 animate-pulse">{erro}</div>}
-          {sucesso && <div className="bg-emerald-500/10 border-l-4 border-emerald-500 text-emerald-400 p-3 rounded-r-xl text-[11px] font-bold mb-6">{sucesso}</div>}
+          {/* ALERTAS */}
+          {erro && <div className="text-red-400 text-xs mb-4">{erro}</div>}
+          {sucesso && <div className="text-emerald-400 text-xs mb-4">{sucesso}</div>}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+
             {(view === "login" || view === "register") && (
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Usuário</label>
-                <div className="relative group">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-400 transition-colors" size={18} />
-                  <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/5 rounded-2xl text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all" placeholder="ID do Cliente" />
-                </div>
-              </div>
+              <input
+                type="text"
+                required
+                className="w-full p-3 sm:p-4 rounded-xl bg-white/5 text-white text-sm sm:text-base"
+                placeholder="Usuário"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
             )}
 
             {(view === "register" || view === "forgot_password") && (
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">E-mail</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-400 transition-colors" size={18} />
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/5 rounded-2xl text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all" placeholder="cliente@email.com" />
-                </div>
-              </div>
+              <input
+                type="email"
+                required
+                className="w-full p-3 sm:p-4 rounded-xl bg-white/5 text-white text-sm sm:text-base"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             )}
 
             {(view === "login" || view === "register") && (
-              <div className="space-y-1">
-                <div className="flex justify-between items-center px-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Senha</label>
-                  {view === "login" && <button type="button" onClick={() => changeView("forgot_password")} className="text-[10px] font-bold text-emerald-500">Esqueci a Senha</button>}
-                </div>
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-6 py-3.5 bg-white/5 border border-white/5 rounded-2xl text-white text-sm tracking-[0.3em] focus:outline-none focus:border-emerald-500/50 transition-all" placeholder="••••••••" />
-              </div>
+              <input
+                type="password"
+                required
+                className="w-full p-3 sm:p-4 rounded-xl bg-white/5 text-white text-sm sm:text-base"
+                placeholder="Senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
 
-            <button type="submit" disabled={loading} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50">
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <>{view === "login" ? "Entrar na Conta" : view === "register" ? "Abrir Conta" : "Recuperar"} <ArrowUpRight size={18} /></>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 sm:py-4 bg-emerald-500 text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : "Continuar"}
             </button>
+
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+          {/* LINKS */}
+          <div className="mt-6 text-center text-xs text-slate-400">
             {view === "login" ? (
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Não possui conta? <button onClick={() => changeView("register")} className="text-emerald-400 underline underline-offset-4 ml-1 transition-colors">Cadastre-se</button></p>
+              <button onClick={() => changeView("register")}>Criar conta</button>
             ) : (
-              <button onClick={() => changeView("login")} className="text-slate-400 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 mx-auto"><ArrowLeft size={14} /> Voltar</button>
+              <button onClick={() => changeView("login")}>Voltar</button>
             )}
           </div>
+
         </div>
 
-        <div className="mt-8 flex justify-center gap-6 text-slate-700 opacity-50 flex-wrap">
-          <div className="flex items-center gap-2"><TrendingUp size={14} /><span className="text-[9px] font-bold uppercase">Markets</span></div>
-          <div className="flex items-center gap-2"><Wallet size={14} /><span className="text-[9px] font-bold uppercase">Assets</span></div>
-          <div className="flex items-center gap-2"><CircleDollarSign size={14} /><span className="text-[9px] font-bold uppercase">Secure</span></div>
+        {/* FOOTER */}
+        <div className="mt-6 flex justify-center gap-6 sm:gap-10 text-slate-700 flex-wrap">
+          <TrendingUp size={16} />
+          <Wallet size={16} />
+          <CircleDollarSign size={16} />
         </div>
+
       </div>
     </div>
   );
