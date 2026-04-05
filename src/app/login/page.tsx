@@ -113,7 +113,7 @@ export default function LoginPage() {
             <h1 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase">
               Finance<span className="text-emerald-400">VM</span>
             </h1>
-            <p className="text-slate-500 text-[9px] uppercase tracking-[0.3em] mt-1 font-bold">Private Banking</p>
+            <p className="text-slate-500 text-[9px] uppercase tracking-[0.3em] mt-1 font-bold">Sua gestão pessoal</p>
           </div>
 
           {erro && <div className="bg-red-500/10 border-l-2 border-red-500 text-red-400 p-3 rounded-r-lg text-[10px] font-bold mb-6">{erro}</div>}
