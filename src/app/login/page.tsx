@@ -22,15 +22,10 @@ export default function LoginPage() {
   const router = useRouter();
   const API_URL = "https://victorrmendes.pythonanywhere.com";
 
-  // 🛡️ MATA O LOOP DE ERRO: Limpa o cache de ferramentas de dev do navegador que travam a tela
+  // Otimizado: Só limpa se houver erro persistente, sem bloquear o render inicial
   useEffect(() => {
     if (typeof window !== "undefined") {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-          regs.forEach(r => r.unregister());
-        });
-      }
-      // Tenta forçar a parada de scripts residuais de browser-sync
+      // Impede que o browser-sync local trave a thread principal
       (window as any).___browserSync___ = null;
     }
   }, []);
@@ -44,196 +39,137 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setErro(""); setSucesso("");
+    setLoading(true);
+    setErro("");
+    setSucesso("");
 
     try {
-      if (view === "login") {
-        const resposta = await fetch(`${API_URL}/api/token/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-          credentials: "include",
-        });
+      // Criamos um controller para dar timeout se a rede estiver em loop (15 segundos)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        if (resposta.ok) {
+      let endpoint = "/api/token/";
+      let body = JSON.stringify({ username, password });
+
+      if (view === "register") {
+        endpoint = "/api/usuarios/registrar/";
+        body = JSON.stringify({ username, email, password });
+      } else if (view === "forgot_password") {
+        endpoint = "/api/usuarios/recuperar-senha/";
+        body = JSON.stringify({ email });
+      }
+
+      const resposta = await fetch(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body,
+        credentials: "include",
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (resposta.ok) {
+        if (view === "login") {
           localStorage.setItem("username", username);
           localStorage.setItem("is_logged", "true");
-          router.push("/"); 
+          router.push("/");
+          router.refresh(); // Força o Next.js a atualizar o estado do layout
         } else {
-          setErro("Acesso negado. Credenciais inválidas.");
+          setSucesso(view === "register" ? "Conta criada! Acesse agora." : "Verifique seu e-mail.");
+          if (view === "register") changeView("login");
         }
-      } 
-      else if (view === "register") {
-        const resposta = await fetch(`${API_URL}/api/usuarios/registrar/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, email, password }),
-        });
-
-        if (resposta.ok) {
-          setSucesso("Conta bancária virtual criada! Acesse agora.");
-          changeView("login");
-        } else {
-          const dadosErro = await resposta.json();
-          setErro(dadosErro.username ? dadosErro.username[0] : "Erro ao processar registro.");
-        }
+      } else {
+        const dados = await resposta.json().catch(() => ({}));
+        setErro(dados.detail || "Falha na operação. Verifique os dados.");
       }
-      else if (view === "forgot_password") {
-        const resposta = await fetch(`${API_URL}/api/usuarios/recuperar-senha/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-
-        if (resposta.ok) {
-          setSucesso("Verifique sua caixa de entrada para redefinir.");
-          setTimeout(() => changeView("login"), 4000);
-        } else {
-          setErro("E-mail não encontrado em nossa base.");
-        }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        setErro("O servidor demorou muito para responder. Tente novamente.");
+      } else {
+        setErro("Erro de conexão com o banco de dados.");
       }
-    } catch (error) {
-      setErro("Sem conexão com o servidor financeiro.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // min-h-screen e bg-[#020617] garantem que o fundo escuro cubra 100% da tela
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#020617] font-sans p-4 relative overflow-x-hidden">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#020617] font-sans p-4 relative overflow-hidden">
       
-      {/* 🟢 EFEITOS DE GLOW (Fundo Tecnológico) */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-emerald-500/10 rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-blue-600/10 rounded-full blur-[100px]"></div>
+      {/* BACKGROUND (Otimizado sem blur pesado no mobile) */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-emerald-500/5 rounded-full blur-[80px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-blue-600/5 rounded-full blur-[80px]"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-[460px] py-8">
-        
-        {/* CARD ESTILO PRIVATE BANK */}
-        <div className="bg-slate-900/80 backdrop-blur-3xl border border-white/5 p-6 sm:p-10 rounded-[2.5rem] shadow-2xl">
+      <div className="relative z-10 w-full max-w-[440px]">
+        <div className="bg-slate-900/40 backdrop-blur-md border border-white/5 p-6 sm:p-10 rounded-[2.5rem] shadow-2xl">
           
-          {/* HEADER / LOGO */}
           <div className="flex flex-col items-center mb-8 text-center">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-2xl flex items-center justify-center mb-4 rotate-3 shadow-lg shadow-emerald-500/20">
-              <Landmark className="text-slate-900" size={30} />
+            <div className="w-12 h-12 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
+              <Landmark className="text-slate-950" size={24} />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white italic tracking-tighter uppercase">
+            <h1 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase">
               Finance<span className="text-emerald-400">VM</span>
             </h1>
-            <p className="text-slate-500 text-[10px] uppercase tracking-[0.3em] mt-1 font-black">
-              Private Banking & Assets
-            </p>
+            <p className="text-slate-500 text-[9px] uppercase tracking-[0.3em] mt-1 font-bold">Private Banking</p>
           </div>
 
-          {/* ALERTAS */}
-          {(erro || sucesso) && (
-            <div className={`border-l-4 px-4 py-3 rounded-r-xl text-[11px] font-bold mb-6 animate-in fade-in slide-in-from-top-2 ${
-              erro ? "bg-red-500/10 border-red-500 text-red-400" : "bg-emerald-500/10 border-emerald-500 text-emerald-400"
-            }`}>
-              {erro || sucesso}
-            </div>
-          )}
+          {erro && <div className="bg-red-500/10 border-l-2 border-red-500 text-red-400 p-3 rounded-r-lg text-[10px] font-bold mb-6">{erro}</div>}
+          {sucesso && <div className="bg-emerald-500/10 border-l-2 border-emerald-500 text-emerald-400 p-3 rounded-r-lg text-[10px] font-bold mb-6">{sucesso}</div>}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            
-            {/* CAMPO USUÁRIO */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             {(view === "login" || view === "register") && (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Usuário</label>
-                <div className="relative group">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-400 transition-colors" size={18} />
-                  <input
-                    type="text" required
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/10 transition-all placeholder:text-slate-800"
-                    placeholder="ID DE ACESSO"
-                    value={username} onChange={(e) => setUsername(e.target.value)}
-                  />
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Usuário</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                  <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all" placeholder="ID de Acesso" />
                 </div>
               </div>
             )}
 
-            {/* CAMPO E-MAIL */}
             {(view === "register" || view === "forgot_password") && (
-              <div className="space-y-1.5 animate-in fade-in slide-in-from-bottom-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">E-mail Cadastrado</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-400 transition-colors" size={18} />
-                  <input
-                    type="email" required
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/10 transition-all placeholder:text-slate-800"
-                    placeholder="CLIENTE@EMAIL.COM"
-                    value={email} onChange={(e) => setEmail(e.target.value)}
-                  />
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">E-mail</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all" placeholder="email@exemplo.com" />
                 </div>
               </div>
             )}
 
-            {/* CAMPO SENHA + LINK ESQUECI */}
             {(view === "login" || view === "register") && (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <div className="flex justify-between items-center px-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Senha</label>
-                  {view === "login" && (
-                    <button 
-                      type="button" 
-                      onClick={() => changeView("forgot_password")}
-                      className="text-[10px] font-black text-emerald-500 hover:text-white transition-colors"
-                    >
-                      ESQUECEU?
-                    </button>
-                  )}
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Senha</label>
+                  {view === "login" && <button type="button" onClick={() => changeView("forgot_password")} className="text-[9px] font-bold text-emerald-500">Esqueceu?</button>}
                 </div>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-emerald-400 transition-colors" size={18} />
-                  <input
-                    type="password" required
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-sm tracking-[0.3em] focus:outline-none focus:border-emerald-500/50 focus:bg-white/10 transition-all placeholder:text-slate-800"
-                    placeholder="••••••••"
-                    value={password} onChange={(e) => setPassword(e.target.value)}
-                  />
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                  <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/5 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all" placeholder="••••••••" />
                 </div>
               </div>
             )}
 
-            <button
-              type="submit" disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            <button type="submit" disabled={loading}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-3.5 rounded-xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-4 text-xs"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <>
-                  <span>
-                    {view === "login" ? "Acessar Carteira" : view === "register" ? "Abrir Conta" : "Protocolo de Recuperação"}
-                  </span>
-                  <ArrowUpRight size={18} />
-                </>
-              )}
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <span>{view === "login" ? "Entrar" : view === "register" ? "Criar" : "Recuperar"}</span>}
             </button>
           </form>
 
-          {/* RODAPÉ DO CARD / ALTERNÂNCIA */}
           <div className="mt-8 pt-6 border-t border-white/5 text-center">
             {view === "login" ? (
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                Ainda não é cliente? 
-                <button onClick={() => changeView("register")} className="text-emerald-400 underline underline-offset-4 ml-2 hover:text-white transition-colors">Cadastre-se</button>
-              </p>
+              <button onClick={() => changeView("register")} className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Não é cliente? <span className="text-emerald-500 underline">Cadastre-se</span></button>
             ) : (
-              <button onClick={() => changeView("login")} className="text-slate-400 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:text-white transition-all">
-                <ArrowLeft size={14} /> Voltar para o login
-              </button>
+              <button onClick={() => changeView("login")} className="text-slate-400 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 mx-auto"><ArrowLeft size={12} /> Voltar</button>
             )}
           </div>
-        </div>
-
-        {/* INDICADORES DE MERCADO (DECORATIVO) */}
-        <div className="mt-8 flex justify-center gap-6 text-slate-700 opacity-40 flex-wrap">
-          <div className="flex items-center gap-2"><TrendingUp size={14} /><span className="text-[9px] font-bold uppercase">Markets</span></div>
-          <div className="flex items-center gap-2"><Wallet size={14} /><span className="text-[9px] font-bold uppercase">Assets</span></div>
-          <div className="flex items-center gap-2"><CircleDollarSign size={14} /><span className="text-[9px] font-bold uppercase">Secure</span></div>
         </div>
       </div>
     </div>
