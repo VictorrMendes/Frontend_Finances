@@ -14,7 +14,7 @@
 
 ## 💡 A origem do projeto
 
-Quando meu amigo comentou sobre a dificuldade de enxergar para onde ia o dinheiro dele, pensei: _"provavelmente já existe um app pra isso."_ E existem muitos. Mas, como eu sempre digo: **toda ideia é uma boa ideia** — então decidi construir do zero, pelo aprendizado e pela paixão que tenho em desenvolver projetos que resolvem problemas reais.
+Quando meu amigo comentou sobre a dificuldade de enxergar para onde ia o dinheiro dele, pensei: _"provavelmente já existe um app pra isso.",e existem muitos. Mas, como Mark Zuckerber diz: **As ideias não vêm totalmente formadas. Elas só se tornam claras à medida que você trabalha nelas. Você só precisa começar.** — então decidi construir do zero, pelo aprendizado e pela paixão que tenho em desenvolver projetos que resolvem problemas reais.
 
 ---
 
