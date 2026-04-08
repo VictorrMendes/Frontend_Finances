@@ -1,49 +1,105 @@
-# 💰 Controle Financeiro
+# 💰 FinanceVM — Controle Financeiro Inteligente
 
-> Um aplicativo web progressivo (PWA) moderno e responsivo para gestão financeira pessoal, permitindo o controle total de receitas, despesas, cartões e contas bancárias.
+> Um aplicativo web progressivo (PWA) moderno e responsivo para gestão financeira pessoal. Controle total de receitas, despesas, cartões e investimentos com uma interface estilo Fintech.
 
-![Status do Projeto](https://img.shields.io/badge/Status-Em_Desenvolvimento-green)
-![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css)
+![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-1D9E75?style=flat-square)
+![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178C6?style=flat-square&logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=flat-square&logo=tailwind-css)
+![PWA](https://img.shields.io/badge/PWA-Enabled-5A0FC8?style=flat-square)
 
----
-
-## 📌 Funcionalidades
-
-Este projeto foi desenvolvido com foco na usabilidade e performance, contando com as seguintes funcionalidades principais:
-
-* **Autenticação Segura:** Sistema de login para proteção dos dados financeiros.
-* **Dashboard e Relatórios:** Visão geral das finanças e relatórios detalhados (`/relatorios`).
-* **Gestão de Lançamentos:** Registro rápido de receitas e despesas (`/lancamentos`).
-* **Controle de Cartões:** Gerenciamento de cartões de crédito/débito (`/cartoes`).
-* **Gestão de Contas Bancárias:** Acompanhamento de saldos e transações por banco (`/bancos`).
-* **Categorização:** Organização inteligente das transações (`/categorias`).
-* **PWA (Progressive Web App):** Instalável no celular (iOS e Android) e no desktop, funcionando como um aplicativo nativo.
+🔗 **[Ver projeto ao vivo →](https://myfinances-self.vercel.app/login)**
 
 ---
 
-## 🚀 Tecnologias Utilizadas
+## 💡 A origem do projeto
 
-O frontend foi construído utilizando o que há de mais moderno no ecossistema web:
-
-* **[Next.js 16](https://nextjs.org/)** - Framework React com App Router.
-* **[React](https://reactjs.org/)** - Biblioteca para construção da interface.
-* **[TypeScript](https://www.typescriptlang.org/)** - Tipagem estática para maior segurança do código.
-* **[Tailwind CSS v4](https://tailwindcss.com/)** - Estilização utilitária rápida e responsiva.
-* **PWA** - Configuração nativa para manifest e Service Workers.
+Quando meu amigo comentou sobre a dificuldade de enxergar para onde ia o dinheiro dele, pensei: _"provavelmente já existe um app pra isso."_ E existem muitos. Mas, como eu sempre digo: **toda ideia é uma boa ideia** — então decidi construir do zero, pelo aprendizado e pela paixão que tenho em desenvolver projetos que resolvem problemas reais.
 
 ---
 
-## 🛠️ Como rodar o projeto localmente
+## 📌 Funcionalidades principais
+
+Desenvolvido com foco em **mobile-first** e alta performance:
+
+| Funcionalidade | Descrição |
+|---|---|
+| 🔐 **Autenticação Private Bank** | Login seguro com JWT e Refresh Tokens |
+| 📊 **Dashboard de Ativos** | Visão consolidada de liquidez, reserva e patrimônio |
+| ⚡ **Gestão de Fluxo** | Registro rápido de entradas, saídas e faturas de cartão |
+| 🔔 **Agenda de Pagamentos** | Alertas para vencimentos do dia, atrasados e próximos |
+| 📈 **Análise Gráfica** | Distribuição de gastos por categoria e ranking de consumo |
+| 📱 **PWA Nativo** | Instalável no Android e iOS, funciona como app nativo |
+| 🖥️ **Interface Responsiva** | Design adaptativo otimizado para qualquer tela |
+
+---
+
+## 🚀 Stack tecnológica
+
+### Frontend (este repositório)
+- **[Next.js 15](https://nextjs.org/)** — App Router
+- **[TypeScript](https://www.typescriptlang.org/)** — Tipagem estática
+- **[Tailwind CSS v4](https://tailwindcss.com/)** — Estilização moderna
+- **[Recharts](https://recharts.org/)** — Visualizações e gráficos interativos
+- **[Lucide React](https://lucide.dev/)** — Ícones
+- **[Workbox](https://developer.chrome.com/docs/workbox/)** — Service Workers e suporte PWA
+
+### Backend (repositório privado)
+A API REST que alimenta este frontend foi desenvolvida em **Python/Django** e está hospedada em produção. O repositório é mantido privado por questões de segurança e controle de dados pessoais.
+
+---
+
+## 🛠️ Rodando localmente
 
 ### Pré-requisitos
-Antes de começar, você vai precisar ter instalado em sua máquina as seguintes ferramentas:
-* [Git](https://git-scm.com)
-* [Node.js](https://nodejs.org/en/) (versão 18 ou superior)
+- [Git](https://git-scm.com)
+- [Node.js](https://nodejs.org/en/) v18+
+- Acesso à API (instância própria ou endpoint configurado)
 
-### Instalação
+### Configuração
 
-**1. Clone o repositório:**
 ```bash
-git clone [https://github.com/](https://github.com/)[SEU_USUARIO_DO_GITHUB]/controle-financeiro.git
+# Clone o repositório
+git clone https://github.com/VictorrMendes/Frontend_Finances.git
+cd Frontend_Finances
+
+# Instale as dependências
+npm install
+```
+
+Crie um arquivo `.env.local` na raiz do projeto com a URL da sua API:
+
+```env
+NEXT_PUBLIC_API_URL=https://sua-api.com
+```
+
+```bash
+# Inicie o servidor de desenvolvimento
+npm run dev
+```
+
+Acesse **http://localhost:3000** para visualizar a aplicação.
+
+---
+
+## 📦 Deploy
+
+O frontend está publicado na **[Vercel](https://vercel.com)** com deploy automático a cada push na branch principal.
+
+🔗 [myfinances-self.vercel.app](https://myfinances-self.vercel.app/login)
+
+---
+
+## 📝 Licença
+
+Projeto desenvolvido para fins de estudo e uso pessoal. Sinta-se à vontade para utilizar como referência.
+
+---
+
+<div align="center">
+
+Desenvolvido com paixão por **Victor Mendes** 🚀
+
+_De uma conversa com um amigo a um projeto completo._
+
+</div>
